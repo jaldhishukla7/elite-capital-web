@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Menu, Moon, Sun, TrendingUp } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Search, Menu, Moon, Sun, TrendingUp, Settings, BarChart3, Briefcase, Heart, Info } from 'lucide-react'
 
 export function Navbar() {
   const [isDark, setIsDark] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const pathname = usePathname()
 
   const toggleDarkMode = () => {
     setIsDark(!isDark)
@@ -16,14 +19,29 @@ export function Navbar() {
     }
   }
 
-  const navLinks = ['Stocks', 'Mutual Funds', 'IPO', 'ETFs', 'F&O', 'Commodities', 'News']
+  const navLinks = [
+    { label: 'Stocks', href: '/stocks', icon: TrendingUp },
+    { label: 'Indices', href: '/indices', icon: BarChart3 },
+    { label: 'Commodities', href: '/commodities', icon: Briefcase },
+    { label: 'Watchlist', href: '/watchlist', icon: Heart },
+    { label: 'Portfolio', href: '/portfolio', icon: Briefcase },
+  ]
+
+  const footerLinks = [
+    { label: 'About', href: '/about', icon: Info },
+    { label: 'Settings', href: '/settings', icon: Settings },
+  ]
+
+  const allLinks = [...navLinks, ...footerLinks]
+
+  const isActive = (href: string) => pathname === href
 
   return (
-    <nav className="sticky top-0 z-50 bg-white dark:bg-[#1A1A1A] border-b border-[#E8E8E8] dark:border-[#2A2A2A] shadow-sm">
+    <nav className="sticky top-16 z-50 bg-white dark:bg-[#1A1A1A] border-b border-[#E8E8E8] dark:border-[#2A2A2A] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
             <div className="flex items-center justify-center w-8 h-8 bg-[#44C2A4] rounded-lg">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
@@ -35,18 +53,22 @@ export function Navbar() {
                 Smart Investing
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Center navigation (desktop) */}
           <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <a
-                key={link}
-                href="#"
-                className="text-sm font-medium text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#44C2A4] dark:hover:text-[#44C2A4] transition-colors"
+            {navLinks.map(({ label, href }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`text-sm font-medium transition-colors ${
+                  isActive(href)
+                    ? 'text-[#44C2A4] border-b-2 border-[#44C2A4]'
+                    : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#44C2A4] dark:hover:text-[#44C2A4]'
+                }`}
               >
-                {link}
-              </a>
+                {label}
+              </Link>
             ))}
           </div>
 
@@ -69,10 +91,13 @@ export function Navbar() {
               )}
             </button>
 
-            {/* Open Account Button (desktop) */}
-            <button className="hidden sm:inline-block px-4 py-2 bg-[#44C2A4] text-white text-sm font-semibold rounded-full hover:bg-[#3BA98A] transition-colors">
-              Open Account
-            </button>
+            {/* Settings Link (desktop) */}
+            <Link
+              href="/settings"
+              className="hidden sm:inline-flex p-2 hover:bg-[#F0FDF9] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+            >
+              <Settings className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
+            </Link>
 
             {/* Mobile menu */}
             <button
@@ -86,19 +111,21 @@ export function Navbar() {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden pb-4 border-t border-[#E8E8E8] dark:border-[#2A2A2A]">
-            {navLinks.map((link) => (
-              <a
-                key={link}
-                href="#"
-                className="block py-3 px-2 text-sm font-medium text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#44C2A4] dark:hover:text-[#44C2A4]"
+          <div className="md:hidden pb-4 border-t border-[#E8E8E8] dark:border-[#2A2A2A] space-y-2">
+            {allLinks.map(({ label, href, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  isActive(href)
+                    ? 'bg-[#F0FDF9] dark:bg-[#2A2A2A] text-[#44C2A4]'
+                    : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#44C2A4] hover:bg-[#F0FDF9] dark:hover:bg-[#2A2A2A]'
+                }`}
               >
-                {link}
-              </a>
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
             ))}
-            <button className="w-full mt-3 px-4 py-2 bg-[#44C2A4] text-white text-sm font-semibold rounded-full hover:bg-[#3BA98A] transition-colors">
-              Open Account
-            </button>
           </div>
         )}
       </div>
