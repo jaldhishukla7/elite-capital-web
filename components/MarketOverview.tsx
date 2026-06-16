@@ -57,11 +57,11 @@ function MiniSparkline({ data }: { data: number[] }) {
   
   return (
     <svg viewBox="0 0 300 100" className="w-full h-12" preserveAspectRatio="none">
-      <polyline
-        points={pathPoints}
+      <path
+        d={`M ${pathPoints}`}
         fill="none"
         stroke="#44C2A4"
-        strokeWidth="2"
+        strokeWidth={2}
         vectorEffect="non-scaling-stroke"
       />
     </svg>

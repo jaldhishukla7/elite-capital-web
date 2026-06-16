@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAllQuotes } from 'stock-nse-india'
+import { getAllQuotes } from '@/lib/utils/nseHelper'
 
 export const revalidate = 10
 

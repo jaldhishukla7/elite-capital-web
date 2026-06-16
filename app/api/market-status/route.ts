@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 export const revalidate = 60
 
 function isMarketOpen() {
-  const now = new Date()
+  const istDateString = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+  const now = new Date(istDateString)
   const dayOfWeek = now.getDay()
   const hours = now.getHours()
   const minutes = now.getMinutes()

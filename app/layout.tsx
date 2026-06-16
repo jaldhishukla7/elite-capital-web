@@ -12,7 +12,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Elite Capital Markets - Smart Investing Platform',
   description: 'Real-time stock market data, mutual funds, IPOs, and financial information for Indian investors. Live market ticker with NIFTY 50, SENSEX, and commodities data.',
-  generator: 'v0.app',
   keywords: 'stocks, mutual funds, IPO, NIFTY, SENSEX, market data, trading',
   icons: {
     icon: [
@@ -41,6 +40,8 @@ export const viewport: Viewport = {
   ],
 }
 
+import { LoadDisclaimer } from '@/components/LoadDisclaimer'
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-white dark:bg-[#0D0D0D]`}>
       <body className="font-sans antialiased bg-white dark:bg-[#0D0D0D] text-[#1A1A1A] dark:text-white">
         {children}
+        <LoadDisclaimer />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

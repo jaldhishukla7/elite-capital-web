@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllQuotes } from 'stock-nse-india'
+import { getAllQuotes } from '@/lib/utils/nseHelper'
 
 export const revalidate = 10 // Revalidate every 10 seconds
 
