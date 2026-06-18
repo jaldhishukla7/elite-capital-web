@@ -6,6 +6,7 @@ export const revalidate = 10
 const INDICES = [
   { symbol: '^NSEI', name: 'NIFTY 50', type: 'index' },
   { symbol: '^BSESN', name: 'SENSEX', type: 'index' },
+  { symbol: '^NSEBANK', name: 'NIFTY BANK', type: 'index' },
   { symbol: 'NIFTYJUNIOR', name: 'NIFTY JR 50', type: 'index' },
   { symbol: 'NIFTYMIDCAP150', name: 'NIFTY MIDCAP 150', type: 'index' },
   { symbol: 'NIFTY500', name: 'NIFTY 500', type: 'index' },
@@ -15,6 +16,7 @@ const INDICES = [
 const BASE_PRICES: Record<string, number> = {
   '^NSEI': 23487.50,
   '^BSESN': 77123.45,
+  '^NSEBANK': 49820.40,
   'NIFTYJUNIOR': 69820.30,
   'NIFTYMIDCAP150': 20450.15,
   'NIFTY500': 22150.80,

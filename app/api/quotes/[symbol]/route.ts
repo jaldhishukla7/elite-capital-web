@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllQuotes } from '@/lib/utils/nseHelper'
+import { getSingleQuote } from '@/lib/utils/nseHelper'
 
-export const revalidate = 10 // Revalidate every 10 seconds
+export const revalidate = 5 // Revalidate every 5 seconds
 
 export async function GET(
   request: NextRequest,
@@ -17,20 +17,7 @@ export async function GET(
       )
     }
 
-    // Fetch all quotes and find the matching symbol
-    const allQuotes = await getAllQuotes()
-    
-    if (!allQuotes || allQuotes.length === 0) {
-      return NextResponse.json(
-        { error: 'Unable to fetch stock data' },
-        { status: 500 }
-      )
-    }
-
-    // Find the stock by symbol (case-insensitive)
-    const stock = allQuotes.find(
-      (item: any) => item.symbol?.toUpperCase() === symbol.toUpperCase()
-    )
+    const stock = await getSingleQuote(symbol)
 
     if (!stock) {
       return NextResponse.json(
@@ -41,7 +28,7 @@ export async function GET(
 
     return NextResponse.json(stock, {
       headers: {
-        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
       },
     })
   } catch (error) {

@@ -35,6 +35,25 @@ export function useMarketData(symbol: string, options?: UseMarketDataOptions) {
   }
 }
 
+export function useStockHistory(symbol: string, range: string = '1mo', interval: string = '1d') {
+  const { data, error, isLoading, mutate } = useSWR(
+    symbol ? `/api/quotes/${symbol}/history?range=${range}&interval=${interval}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000, // cache for 1 minute in client SWR
+    }
+  )
+
+  return {
+    history: data || [],
+    error,
+    isLoading,
+    mutate,
+  }
+}
+
 export function useIndices(options?: UseMarketDataOptions) {
   const { data, error, isLoading, mutate } = useSWR(
     '/api/indices',

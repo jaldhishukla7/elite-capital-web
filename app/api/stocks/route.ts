@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAllQuotes } from '@/lib/utils/nseHelper'
 
-export const revalidate = 10
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
