@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getYahooChartHistory } from '@/lib/utils/nseHelper'
+import { getYahooChartHistory, getYahooChartHistoryFromCandidates } from '@/lib/utils/nseHelper'
+import { buildYahooCandidates, findStockInMaster } from '@/lib/utils/stockMaster'
 
 export const revalidate = 60 // Revalidate every 60 seconds for historical data
 
@@ -21,7 +22,10 @@ export async function GET(
     const range = searchParams.get('range') || '1mo'
     const interval = searchParams.get('interval') || '1d'
 
-    const history = await getYahooChartHistory(symbol, range, interval)
+    const directoryStock = await findStockInMaster(symbol)
+    const history = directoryStock
+      ? await getYahooChartHistoryFromCandidates(buildYahooCandidates(directoryStock), range, interval)
+      : await getYahooChartHistory(symbol, range, interval)
 
     if (!history || history.length === 0) {
       return NextResponse.json(

@@ -1,42 +1,36 @@
 import { NextResponse } from 'next/server'
-import { getAllQuotes } from '@/lib/utils/nseHelper'
+import { getQuotesForStocks } from '@/lib/utils/nseHelper'
+import { getStockPage } from '@/lib/utils/stockMaster'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '50', 10)
+    const limit = parseInt(searchParams.get('limit') || '25', 10)
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const query = searchParams.get('q') || ''
+    const exchangeParam = searchParams.get('exchange') || 'all'
+    const exchange = ['all', 'NSE', 'BSE'].includes(exchangeParam) ? exchangeParam as 'all' | 'NSE' | 'BSE' : 'all'
+    const includeQuotes = searchParams.get('quotes') !== '0'
 
-    const allQuotes = await getAllQuotes()
+    const stockPage = await getStockPage({ query, page, limit, exchange })
+    const stocks = includeQuotes ? await getQuotesForStocks(stockPage.data) : stockPage.data
 
-    if (!allQuotes || allQuotes.length === 0) {
+    if (!stocks) {
       return NextResponse.json(
         { error: 'Unable to fetch stock data' },
         { status: 500 }
       )
     }
 
-    // Return limited stocks sorted by change
-    const stocks = allQuotes
-      .slice(0, limit)
-      .map((stock: any) => ({
-        symbol: stock.symbol,
-        name: stock.name,
-        ltP: stock.ltP,
-        open: stock.open,
-        high: stock.high,
-        low: stock.low,
-        pCh: stock.pCh,
-        pChg: stock.pChg,
-        volume: stock.volume,
-        marketCap: stock.marketCap,
-      }))
-
     return NextResponse.json(
       {
         data: stocks,
-        count: stocks.length,
+        count: stockPage.count,
+        page: stockPage.page,
+        limit: stockPage.limit,
+        totalPages: stockPage.totalPages,
         timestamp: new Date().toISOString(),
       },
       {

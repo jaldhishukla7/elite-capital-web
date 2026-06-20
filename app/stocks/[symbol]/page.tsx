@@ -268,9 +268,11 @@ export default function StockDetailsPage() {
     ]
   }, [symbol])
 
-  const currentPriceDisplay = stock?.ltP || (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].price : 0)
-  const currentChangeDisplay = stock?.pCh || 0
-  const currentChgPercentDisplay = stock?.pChg || 0
+  const hasLiveQuote = stock?.priceAvailable !== false && stock?.ltP !== null && stock?.ltP !== undefined
+  const currentPriceDisplay = hasLiveQuote ? stock?.ltP : (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].price : null)
+  const currentPriceValue = Number(currentPriceDisplay) || 0
+  const currentChangeDisplay = hasLiveQuote ? stock?.pCh : null
+  const currentChgPercentDisplay = hasLiveQuote ? stock?.pChg : null
 
   return (
     <main className="min-h-screen bg-white dark:bg-[#0D0D0D]">
@@ -315,6 +317,11 @@ export default function StockDetailsPage() {
                   <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-1 font-medium">
                     {stock?.name || `${symbol} Stock Details`}
                   </p>
+                  {!hasLiveQuote && stock && (
+                    <p className="text-xs text-[#E74C3C] mt-2 font-semibold">
+                      Listed stock found, but Yahoo Finance does not currently provide a live quote for it.
+                    </p>
+                  )}
                 </div>
 
                 <div className="sm:text-right">
@@ -325,14 +332,14 @@ export default function StockDetailsPage() {
                   </div>
                   <div className="flex items-center sm:justify-end gap-2 mt-1">
                     <span className={`text-sm font-bold ${getChangeColor(currentChgPercentDisplay)}`}>
-                      {currentChangeDisplay >= 0 ? '+' : ''}{formatChange(currentChangeDisplay)}
+                      {Number(currentChangeDisplay) >= 0 && currentChangeDisplay !== null ? '+' : ''}{formatChange(currentChangeDisplay)}
                     </span>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                      currentChgPercentDisplay >= 0
+                      Number(currentChgPercentDisplay) >= 0
                         ? 'bg-[#E0F7F4] text-[#00D09C] dark:bg-[#1A3A36]/80'
                         : 'bg-[#FFEBEE] text-[#E74C3C] dark:bg-[#3A1A1A]/80'
                     }`}>
-                      {currentChgPercentDisplay >= 0 ? '+' : ''}{formatChangePercent(currentChgPercentDisplay)}
+                      {Number(currentChgPercentDisplay) >= 0 && currentChgPercentDisplay !== null ? '+' : ''}{formatChangePercent(currentChgPercentDisplay)}
                     </span>
                   </div>
                 </div>
@@ -509,13 +516,13 @@ export default function StockDetailsPage() {
                   <div>
                     <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium block">52W High</span>
                     <span className="text-base font-bold text-[#1A1A1A] dark:text-white mt-1 block">
-                      {formatPrice((stock?.high || currentPriceDisplay) * 1.25)}
+                      {currentPriceValue > 0 ? formatPrice((stock?.high || currentPriceValue) * 1.25) : 'N/A'}
                     </span>
                   </div>
                   <div>
                     <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium block">52W Low</span>
                     <span className="text-base font-bold text-[#1A1A1A] dark:text-white mt-1 block">
-                      {formatPrice((stock?.low || currentPriceDisplay) * 0.78)}
+                      {currentPriceValue > 0 ? formatPrice((stock?.low || currentPriceValue) * 0.78) : 'N/A'}
                     </span>
                   </div>
                   <div>
@@ -665,7 +672,7 @@ export default function StockDetailsPage() {
                       {holdings
                         .filter((h) => h.symbol === symbol)
                         .map((holding) => {
-                          const value = holding.shares * currentPriceDisplay
+                          const value = holding.shares * (currentPriceValue || holding.currentPrice)
                           const cost = holding.shares * holding.buyPrice
                           const returns = value - cost
                           const retPercent = (returns / cost) * 100

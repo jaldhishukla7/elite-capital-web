@@ -94,9 +94,24 @@ export function useCommodities(options?: UseMarketDataOptions) {
   }
 }
 
-export function useStocks(limit: number = 50, options?: UseMarketDataOptions) {
+interface UseStocksOptions extends UseMarketDataOptions {
+  page?: number
+  query?: string
+  exchange?: 'all' | 'NSE' | 'BSE'
+  includeQuotes?: boolean
+}
+
+export function useStocks(limit: number = 50, options?: UseStocksOptions) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: String(options?.page || 1),
+    q: options?.query || '',
+    exchange: options?.exchange || 'all',
+    quotes: options?.includeQuotes === false ? '0' : '1',
+  })
+
   const { data, error, isLoading, mutate } = useSWR(
-    `/api/stocks?limit=${limit}`,
+    `/api/stocks?${params.toString()}`,
     fetcher,
     {
       refreshInterval: options?.refreshInterval || 5000,
@@ -109,6 +124,8 @@ export function useStocks(limit: number = 50, options?: UseMarketDataOptions) {
   return {
     stocks: data?.data || [],
     count: data?.count || 0,
+    page: data?.page || 1,
+    totalPages: data?.totalPages || 1,
     error,
     isLoading,
     mutate,

@@ -94,7 +94,7 @@ export function isMarketOpenIST() {
 
 export async function fetchYahooChartQuote(symbol: string) {
   try {
-    const res = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, {
+    const res = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
@@ -123,10 +123,10 @@ export async function fetchYahooChartQuote(symbol: string) {
 }
 
 // Batch quote fetching for better performance
-async function fetchYahooQuotesBatch(symbols: string[]) {
+export async function fetchYahooQuotesBatch(symbols: string[]) {
   try {
     const mapped = symbols.map(s => YAHOO_SYMBOLS_MAP[s] || (s.includes('^') || s.endsWith('.NS') ? s : `${s}.NS`))
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${mapped.join(',')}`
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${mapped.map(encodeURIComponent).join(',')}`
     const res = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -139,6 +139,58 @@ async function fetchYahooQuotesBatch(symbols: string[]) {
     console.error('Error fetching batch Yahoo quotes:', error)
     return []
   }
+}
+
+export async function getQuotesForStocks<T extends { symbol: string; name: string; exchange?: string; bseCode?: string; yahooSymbols?: string[] }>(
+  stocks: T[]
+) {
+  if (stocks.length === 0) return []
+
+  const quoteSymbols = stocks.map((stock) => {
+    if (stock.yahooSymbols?.[0]) return stock.yahooSymbols[0]
+    if (stock.exchange === 'BSE' && stock.bseCode) return `${stock.bseCode}.BO`
+    return `${stock.symbol}.NS`
+  })
+
+  const yahooQuotes = await fetchYahooQuotesBatch(quoteSymbols)
+
+  return stocks.map((stock, index) => {
+    const yahooSymbol = quoteSymbols[index]
+    const data = yahooQuotes.find((quote: any) => quote.symbol?.toUpperCase() === yahooSymbol.toUpperCase())
+
+    if (!data) {
+      return {
+        ...stock,
+        ltP: null,
+        open: null,
+        high: null,
+        low: null,
+        pCh: null,
+        pChg: null,
+        volume: null,
+        marketCap: null,
+        priceAvailable: false,
+      }
+    }
+
+    const price = data.regularMarketPrice || null
+    const prevClose = data.regularMarketPreviousClose || price
+    const change = price && prevClose ? data.regularMarketChange ?? (price - prevClose) : null
+    const pChg = price && prevClose ? data.regularMarketChangePercent ?? ((change / prevClose) * 100) : null
+
+    return {
+      ...stock,
+      ltP: price !== null ? parseFloat(price.toFixed(2)) : null,
+      open: data.regularMarketOpen ? parseFloat(data.regularMarketOpen.toFixed(2)) : null,
+      high: data.regularMarketDayHigh ? parseFloat(data.regularMarketDayHigh.toFixed(2)) : null,
+      low: data.regularMarketDayLow ? parseFloat(data.regularMarketDayLow.toFixed(2)) : null,
+      pCh: change !== null ? parseFloat(change.toFixed(2)) : null,
+      pChg: pChg !== null ? parseFloat(pChg.toFixed(2)) : null,
+      volume: data.regularMarketVolume || null,
+      marketCap: data.marketCap || null,
+      priceAvailable: price !== null,
+    }
+  })
 }
 
 let lastStocksFetch = 0
@@ -304,12 +356,67 @@ export async function getSingleQuote(symbol: string) {
   }
 }
 
+export async function getSingleQuoteFromCandidates(stock: {
+  symbol: string
+  name: string
+  exchange?: string
+  bseCode?: string
+  isin?: string
+  yahooSymbols?: string[]
+}) {
+  const candidates = [
+    ...(stock.yahooSymbols || []),
+    stock.exchange === 'BSE' && stock.bseCode ? `${stock.bseCode}.BO` : '',
+    stock.symbol ? `${stock.symbol}.NS` : '',
+    stock.symbol ? `${stock.symbol}.BO` : '',
+  ].filter(Boolean)
+
+  for (const candidate of Array.from(new Set(candidates))) {
+    const data = await fetchYahooChartQuote(candidate)
+    if (data) {
+      return {
+        symbol: stock.symbol,
+        name: stock.name,
+        exchange: stock.exchange,
+        isin: stock.isin,
+        bseCode: stock.bseCode,
+        ltP: parseFloat(data.price.toFixed(2)),
+        open: parseFloat(data.open.toFixed(2)),
+        high: parseFloat(data.high.toFixed(2)),
+        low: parseFloat(data.low.toFixed(2)),
+        pCh: parseFloat(data.change.toFixed(2)),
+        pChg: parseFloat(data.pChg.toFixed(2)),
+        volume: data.volume,
+        marketCap: data.price ? Math.floor(data.price * 5000000 * 10) : null,
+        priceAvailable: true,
+      }
+    }
+  }
+
+  return {
+    symbol: stock.symbol,
+    name: stock.name,
+    exchange: stock.exchange,
+    isin: stock.isin,
+    bseCode: stock.bseCode,
+    ltP: null,
+    open: null,
+    high: null,
+    low: null,
+    pCh: null,
+    pChg: null,
+    volume: null,
+    marketCap: null,
+    priceAvailable: false,
+  }
+}
+
 export async function getYahooChartHistory(symbol: string, range: string = '1mo', interval: string = '1d') {
   const upperSymbol = symbol.toUpperCase()
   const yahooSymbol = YAHOO_SYMBOLS_MAP[upperSymbol] || (upperSymbol.includes('^') || upperSymbol.endsWith('.NS') ? upperSymbol : `${upperSymbol}.NS`)
   
   try {
-    const res = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${interval}&range=${range}`, {
+    const res = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${interval}&range=${range}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
@@ -358,6 +465,40 @@ export async function getYahooChartHistory(symbol: string, range: string = '1mo'
     })
   }
   return history
+}
+
+export async function getYahooChartHistoryFromCandidates(
+  candidates: string[],
+  range: string = '1mo',
+  interval: string = '1d'
+) {
+  for (const candidate of Array.from(new Set(candidates.filter(Boolean)))) {
+    try {
+      const res = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(candidate)}?interval=${interval}&range=${range}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        timeout: 3000,
+      })
+
+      const result = res.data?.chart?.result?.[0]
+      if (result) {
+        const timestamps = result.timestamp || []
+        const closePrices = result.indicators?.quote?.[0]?.close || []
+
+        const history = timestamps.map((time: number, idx: number) => ({
+          date: new Date(time * 1000).toISOString(),
+          price: closePrices[idx] !== null && closePrices[idx] !== undefined ? parseFloat(closePrices[idx].toFixed(2)) : null
+        })).filter((item: any) => item.price !== null)
+
+        if (history.length > 0) return history
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return []
 }
 
 const INDICES_MAP = [

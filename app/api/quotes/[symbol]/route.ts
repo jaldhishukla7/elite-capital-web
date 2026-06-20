@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSingleQuote } from '@/lib/utils/nseHelper'
+import { getSingleQuote, getSingleQuoteFromCandidates } from '@/lib/utils/nseHelper'
+import { findStockInMaster } from '@/lib/utils/stockMaster'
 
 export const revalidate = 5 // Revalidate every 5 seconds
 
@@ -17,7 +18,10 @@ export async function GET(
       )
     }
 
-    const stock = await getSingleQuote(symbol)
+    const directoryStock = await findStockInMaster(symbol)
+    const stock = directoryStock
+      ? await getSingleQuoteFromCandidates(directoryStock)
+      : await getSingleQuote(symbol)
 
     if (!stock) {
       return NextResponse.json(

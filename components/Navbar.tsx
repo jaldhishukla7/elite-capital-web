@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Search, Menu, Moon, Sun, TrendingUp, Settings, BarChart3, Briefcase, Heart, Info, X } from 'lucide-react'
 import { useStocks } from '@/lib/hooks/useMarketData'
-import { formatPrice, formatChangePercent } from '@/lib/utils/formatters'
 
 export function Navbar() {
   const [isDark, setIsDark] = useState(false)
@@ -20,8 +19,13 @@ export function Navbar() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  // Fetch stocks list for autocomplete
-  const { stocks } = useStocks(100)
+  // Search the exchange-backed symbol directory instead of the small quoted list.
+  const { stocks: filteredResults } = useStocks(8, {
+    query: searchQuery,
+    includeQuotes: false,
+    refreshInterval: 60000,
+    dedupingInterval: 10000,
+  })
 
   // Synchronise dark mode class from HTML node
   useEffect(() => {
@@ -53,15 +57,6 @@ export function Navbar() {
 
   const allLinks = [...navLinks, ...footerLinks]
   const isActive = (href: string) => pathname === href
-
-  // Filter stocks based on query
-  const filteredResults = searchQuery.trim()
-    ? (stocks || []).filter(
-        (s: any) =>
-          s.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          s.name?.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 5)
-    : []
 
   // Handle routing to details page
   const handleSelectSymbol = (symbol: string) => {
@@ -229,7 +224,7 @@ export function Navbar() {
                   setSearchQuery(e.target.value)
                   setSelectedIndex(-1)
                 }}
-                placeholder="Search stocks by name or ticker symbol (e.g. TCS, INFY, ZOMATO)..."
+                placeholder="Search stocks by name or ticker symbol (e.g. CARRARO, TCS, INFY)..."
                 className="flex-1 bg-transparent text-[#1A1A1A] dark:text-white placeholder-[#9CA3AF] text-sm focus:outline-none"
               />
               <button 
@@ -247,7 +242,7 @@ export function Navbar() {
                   <TrendingUp className="w-8 h-8 mx-auto mb-2 text-[#E8E8E8] dark:text-[#2A2A2A]" />
                   <p className="text-xs">Type a stock symbol or name to begin searching</p>
                   <div className="flex flex-wrap gap-2 justify-center mt-3 max-w-sm mx-auto">
-                    {['RELIANCE', 'TCS', 'INFY', 'ZOMATO', 'SBI', 'NIFTY50'].map((sym) => (
+                    {['CARRARO', 'RELIANCE', 'TCS', 'INFY', 'ZOMATO', 'SBIN'].map((sym) => (
                       <button
                         key={sym}
                         onClick={() => {
@@ -265,9 +260,6 @@ export function Navbar() {
                 <div className="space-y-0.5">
                   {filteredResults.map((stock: any, index: number) => {
                     const isSelected = index === selectedIndex
-                    const changeVal = Number(stock.pChg)
-                    const isPositive = changeVal >= 0
-
                     return (
                       <div
                         key={stock.symbol}
@@ -283,18 +275,21 @@ export function Navbar() {
                             <span className="font-bold text-[#1A1A1A] dark:text-white text-sm">
                               {stock.symbol}
                             </span>
-                            <span className="text-xs text-gray-400 font-medium">NSE</span>
+                            <span className="text-xs text-gray-400 font-medium">{stock.exchange}</span>
+                            {stock.bseCode && (
+                              <span className="text-xs text-gray-400 font-medium">BSE {stock.bseCode}</span>
+                            )}
                           </div>
                           <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF] truncate max-w-sm block">
                             {stock.name}
                           </span>
                         </div>
-                        <div className="text-right">
-                          <span className="font-bold text-sm text-[#1A1A1A] dark:text-white block">
-                            {formatPrice(stock.ltP)}
+                        <div className="text-right min-w-[84px]">
+                          <span className="font-bold text-xs text-[#44C2A4] block">
+                            View details
                           </span>
-                          <span className={`text-xs font-bold ${isPositive ? 'text-[#00D09C]' : 'text-[#E74C3C]'}`}>
-                            {isPositive ? '+' : ''}{formatChangePercent(stock.pChg)}
+                          <span className="text-[11px] text-[#9CA3AF]">
+                            {stock.isin || 'Listed equity'}
                           </span>
                         </div>
                       </div>
@@ -309,8 +304,8 @@ export function Navbar() {
                         : 'hover:bg-gray-50 dark:hover:bg-[#252528] border border-transparent'
                     }`}
                   >
-                    <span>🔍</span>
-                    <span>Look up details for &quot;{searchQuery.toUpperCase()}&quot; directly &rarr;</span>
+                    <Search className="w-4 h-4" />
+                    <span>Look up details for &quot;{searchQuery.toUpperCase()}&quot; directly</span>
                   </div>
                 </div>
               ) : (
@@ -320,8 +315,8 @@ export function Navbar() {
                     className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors duration-200 bg-[#F0FDF9] dark:bg-[#1A3A36] border border-[#44C2A4] text-[#44C2A4] font-semibold text-sm`}
                   >
                     <div className="flex items-center gap-2">
-                      <span>🔍</span>
-                      <span>No local match found. Search &quot;{searchQuery.toUpperCase()}&quot; directly on Yahoo Finance &rarr;</span>
+                      <Search className="w-4 h-4" />
+                      <span>No directory match found. Open details for &quot;{searchQuery.toUpperCase()}&quot;</span>
                     </div>
                   </div>
                 </div>
@@ -330,7 +325,7 @@ export function Navbar() {
             
             {/* Keyboard tips */}
             <div className="px-4 py-2 border-t border-[#E8E8E8] dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1C] text-[10px] text-[#6B7280] dark:text-[#9CA3AF] flex justify-between">
-              <span>Use <kbd className="font-sans font-bold">↑</kbd> <kbd className="font-sans font-bold">↓</kbd> to navigate</span>
+              <span>Use <kbd className="font-sans font-bold">Up</kbd> <kbd className="font-sans font-bold">Down</kbd> to navigate</span>
               <span>Press <kbd className="font-sans font-bold">Enter</kbd> to select</span>
             </div>
           </div>
