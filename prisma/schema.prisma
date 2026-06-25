@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+
+  firstName         String
+  lastName          String
+  email             String   @unique
+  mobile            String   @unique
+  passwordHash      String
+  clientId          String?  @unique
+
+  dateOfBirth       DateTime?
+  isEmailVerified   Boolean  @default(false)
+  isProfileComplete Boolean  @default(false)
+
+  refreshInterval   Int      @default(5000)
+  currency          String   @default("INR")
+  notifications     Boolean  @default(true)
+  darkMode          Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  otps              EmailOtp[]
+  sessions          Session[]
+
+  @@index([email])
+  @@index([mobile])
+}
+
+model EmailOtp {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  code       String    // sha256 hash of the 6-digit OTP
+  purpose    String    @default("EMAIL_VERIFICATION")
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash  String   @unique // sha256 of the raw token stored in the browser cookie
+  expiresAt  DateTime
+  userAgent  String?
+  ipAddress  String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
