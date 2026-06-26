@@ -86,9 +86,9 @@ export async function GET(
     const history = []
     let basePrice = 500
     try {
-      const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbol}`
+      const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`
       const quoteRes = await axios.get(quoteUrl, { timeout: 2000 })
-      const price = quoteRes.data?.quoteResponse?.result?.[0]?.regularMarketPrice
+      const price = quoteRes.data?.chart?.result?.[0]?.meta?.regularMarketPrice
       if (price) basePrice = price
     } catch {}
 

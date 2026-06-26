@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TrendingUp, User } from 'lucide-react'
+import { isAtLeast18 } from '@/lib/age'
 
 export default function CompleteProfilePage() {
   const router = useRouter()
@@ -45,6 +46,11 @@ export default function CompleteProfilePage() {
 
     if (!dateOfBirth) {
       setError('Please enter your date of birth.')
+      return
+    }
+
+    if (!isAtLeast18(dateOfBirth)) {
+      setError('You must be at least 18 years old to use Elite Capital Markets.')
       return
     }
 

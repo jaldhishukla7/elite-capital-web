@@ -3,60 +3,68 @@ import axios from 'axios'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+async function fetchChartMeta(symbol: string) {
   try {
-    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=GC=F,SI=F,CL=F,HG=F,NG=F,INR=X'
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`
     const res = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
-      timeout: 4000,
+      timeout: 3000,
     })
+    return res.data?.chart?.result?.[0]?.meta || null
+  } catch {
+    return null
+  }
+}
 
-    const results = res.data?.quoteResponse?.result || []
-    
+export async function GET() {
+  try {
+    const symbols = ['GC=F', 'SI=F', 'CL=F', 'HG=F', 'NG=F', 'INR=X']
+    const metas = await Promise.all(symbols.map(fetchChartMeta))
+
     // Extract exchange rate (default to 83.5 if fails)
-    const usdinrQuote = results.find((r: any) => r.symbol === 'INR=X')
-    const usdinr = usdinrQuote?.regularMarketPrice || 83.5
+    const usdinrMeta = metas[5]
+    const usdinr = usdinrMeta?.regularMarketPrice || 83.5
 
-    const getQuoteInfo = (symbol: string) => {
-      const q = results.find((r: any) => r.symbol === symbol)
+    const getQuoteInfo = (index: number) => {
+      const m = metas[index]
       return {
-        price: q?.regularMarketPrice || 0,
-        prevClose: q?.regularMarketPreviousClose || q?.regularMarketPrice || 0
+        price: m?.regularMarketPrice || 0,
+        prevClose: m?.previousClose || m?.regularMarketPrice || 0
       }
     }
 
     // Gold: GC=F (USD/oz). Local MCX price is per gram. 1 troy oz = 31.1034768g.
-    const gold = getQuoteInfo('GC=F')
+    const gold = getQuoteInfo(0)
     const goldPriceINR = (gold.price / 31.1034768) * usdinr
     const goldPrevINR = (gold.prevClose / 31.1034768) * usdinr
     const goldChange = goldPriceINR - goldPrevINR
     const goldChgPct = goldPrevINR > 0 ? (goldChange / goldPrevINR) * 100 : 0
 
     // Silver: SI=F (USD/oz). Local MCX is per kg. 1 troy oz = 0.0311034768 kg.
-    const silver = getQuoteInfo('SI=F')
+    const silver = getQuoteInfo(1)
     const silverPriceINR = (silver.price / 0.0311034768) * usdinr
     const silverPrevINR = (silver.prevClose / 0.0311034768) * usdinr
     const silverChange = silverPriceINR - silverPrevINR
     const silverChgPct = silverPrevINR > 0 ? (silverChange / silverPrevINR) * 100 : 0
 
     // Crude Oil: CL=F (USD/barrel). Price is per barrel.
-    const crude = getQuoteInfo('CL=F')
+    const crude = getQuoteInfo(2)
     const crudePriceINR = crude.price * usdinr
     const crudePrevINR = crude.prevClose * usdinr
     const crudeChange = crudePriceINR - crudePrevINR
     const crudeChgPct = crudePrevINR > 0 ? (crudeChange / crudePrevINR) * 100 : 0
 
     // Copper: HG=F (USD/lb). Local MCX is per kg. 1 lb = 0.45359237 kg.
-    const copper = getQuoteInfo('HG=F')
+    const copper = getQuoteInfo(3)
     const copperPriceINR = (copper.price / 0.45359237) * usdinr
     const copperPrevINR = (copper.prevClose / 0.45359237) * usdinr
     const copperChange = copperPriceINR - copperPrevINR
     const copperChgPct = copperPrevINR > 0 ? (copperChange / copperPrevINR) * 100 : 0
 
     // Natural Gas: NG=F (USD/MMBtu). Price is per MMBtu.
-    const natgas = getQuoteInfo('NG=F')
+    const natgas = getQuoteInfo(4)
     const natgasPriceINR = natgas.price * usdinr
     const natgasPrevINR = natgas.prevClose * usdinr
     const natgasChange = natgasPriceINR - natgasPrevINR

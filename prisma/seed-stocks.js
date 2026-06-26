@@ -1,0 +1,160 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const STOCKS = [
+  { symbol: 'RELIANCE', name: 'Reliance Industries Limited', price: 2945.30 },
+  { symbol: 'TCS', name: 'Tata Consultancy Services Limited', price: 3820.15 },
+  { symbol: 'HDFCBANK', name: 'HDFC Bank Limited', price: 1612.45 },
+  { symbol: 'INFY', name: 'Infosys Limited', price: 1485.60 },
+  { symbol: 'ICICIBANK', name: 'ICICI Bank Limited', price: 1124.80 },
+  { symbol: 'BHARTIARTL', name: 'Bharti Airtel Limited', price: 1380.25 },
+  { symbol: 'SBIN', name: 'State Bank of India', price: 832.90 },
+  { symbol: 'SBI', name: 'State Bank of India', price: 832.90 },
+  { symbol: 'LICHSGFIN', name: 'LIC Housing Finance Limited', price: 742.15 },
+  { symbol: 'LT', name: 'Larsen & Toubro Limited', price: 3560.40 },
+  { symbol: 'ITC', name: 'ITC Limited', price: 432.75 },
+  { symbol: 'HINDUNILVR', name: 'Hindustan Unilever Limited', price: 2485.30 },
+  { symbol: 'KOTAKBANK', name: 'Kotak Mahindra Bank Limited', price: 1735.90 },
+  { symbol: 'AXISBANK', name: 'Axis Bank Limited', price: 1182.10 },
+  { symbol: 'ASIANPAINT', name: 'Asian Paints Limited', price: 2912.40 },
+  { symbol: 'MARUTI', name: 'Maruti Suzuki India Limited', price: 12150.00 },
+  { symbol: 'TATAMOTORS', name: 'Tata Motors Limited', price: 980.50 },
+  { symbol: 'TATASTEEL', name: 'Tata Steel Limited', price: 167.30 },
+  { symbol: 'BAJFINANCE', name: 'Bajaj Finance Limited', price: 6850.00 },
+  { symbol: 'BAJAJFINSV', name: 'Bajaj Finserv Limited', price: 1580.40 },
+  { symbol: 'HCLTECH', name: 'HCL Technologies Limited', price: 1420.50 },
+  { symbol: 'SUNPHARMA', name: 'Sun Pharmaceutical Industries Limited', price: 1540.20 },
+  { symbol: 'NTPC', name: 'NTPC Limited', price: 360.40 },
+  { symbol: 'POWERGRID', name: 'Power Grid Corporation of India Limited', price: 298.15 },
+  { symbol: 'TITAN', name: 'Titan Company Limited', price: 3420.00 },
+  { symbol: 'COALINDIA', name: 'Coal India Limited', price: 475.20 },
+  { symbol: 'ADANIENT', name: 'Adani Enterprises Limited', price: 3120.40 },
+  { symbol: 'ADANIPORTS', name: 'Adani Ports and Special Economic Zone Limited', price: 1350.60 },
+  { symbol: 'WIPRO', name: 'Wipro Limited', price: 485.30 },
+  { symbol: 'ULTRACEMCO', name: 'UltraTech Cement Limited', price: 9850.00 },
+  { symbol: 'JSWSTEEL', name: 'JSW Steel Limited', price: 890.40 },
+  { symbol: 'ONGC', name: 'Oil and Natural Gas Corporation Limited', price: 270.80 },
+  { symbol: 'M&M', name: 'Mahindra & Mahindra Limited', price: 2450.25 },
+  { symbol: 'TATACONSUM', name: 'Tata Consumer Products Limited', price: 1115.40 },
+  { symbol: 'HINDALCO', name: 'Hindalco Industries Limited', price: 615.30 },
+  { symbol: 'NESTLEIND', name: 'Nestle India Limited', price: 2510.45 },
+  { symbol: 'CIPLA', name: 'Cipla Limited', price: 1490.50 },
+  { symbol: 'TECHM', name: 'Tech Mahindra Limited', price: 1320.40 },
+  { symbol: 'GRASIM', name: 'Grasim Industries Limited', price: 2320.10 },
+  { symbol: 'SBILIFE', name: 'SBI Life Insurance Company Limited', price: 1460.50 },
+  { symbol: 'ZOMATO', name: 'Zomato Limited', price: 185.20 },
+  { symbol: 'PAYTM', name: 'One 97 Communications Limited (Paytm)', price: 410.50 },
+  { symbol: 'HAL', name: 'Hindustan Aeronautics Limited', price: 4250.00 },
+  { symbol: 'BEL', name: 'Bharat Electronics Limited', price: 285.40 },
+  { symbol: 'IRFC', name: 'Indian Railway Finance Corporation Limited', price: 174.50 },
+  { symbol: 'IREDA', name: 'Indian Renewable Energy Development Agency', price: 185.30 },
+  { symbol: 'RVNL', name: 'Rail Vikas Nigam Limited', price: 380.20 },
+  { symbol: 'HUDCO', name: 'Housing & Urban Development Corporation', price: 245.80 },
+  { symbol: 'PFC', name: 'Power Finance Corporation Limited', price: 485.40 },
+  { symbol: 'RECLTD', name: 'REC Limited', price: 520.10 },
+  { symbol: 'IOC', name: 'Indian Oil Corporation Limited', price: 165.40 },
+  { symbol: 'BPCL', name: 'Bharat Petroleum Corporation Limited', price: 310.80 },
+  { symbol: 'HPCL', name: 'Hindustan Petroleum Corporation Limited', price: 512.30 },
+  { symbol: 'GAIL', name: 'GAIL (India) Limited', price: 198.50 },
+  { symbol: 'IRCTC', name: 'Indian Railway Catering and Tourism Corp', price: 1010.50 },
+  { symbol: 'CONCOR', name: 'Container Corporation of India Limited', price: 980.40 },
+  { symbol: 'BHEL', name: 'Bharat Heavy Electricals Limited', price: 295.20 },
+  { symbol: 'JIOFIN', name: 'Jio Financial Services Limited', price: 360.80 },
+  { symbol: 'NHPC', name: 'NHPC Limited', price: 102.40 },
+  { symbol: 'SJVN', name: 'SJVN Limited', price: 130.50 },
+  { symbol: 'TATACOMM', name: 'Tata Communications Limited', price: 1820.40 },
+  { symbol: 'TATAPOWER', name: 'Tata Power Company Limited', price: 435.60 },
+  { symbol: 'TATACHEM', name: 'Tata Chemicals Limited', price: 1120.50 },
+  { symbol: 'TATAELXSI', name: 'Tata Elxsi Limited', price: 7850.00 },
+  { symbol: 'VOLTAS', name: 'Voltas Limited', price: 1320.60 },
+  { symbol: 'TRENT', name: 'Trent Limited', price: 4650.00 },
+  { symbol: 'VEDL', name: 'Vedanta Limited', price: 450.40 },
+  { symbol: 'HINDZINC', name: 'Hindustan Zinc Limited', price: 680.50 },
+  { symbol: 'NATIONALUM', name: 'National Aluminium Company Limited', price: 190.20 },
+  { symbol: 'SAIL', name: 'Steel Authority of India Limited', price: 155.60 },
+  { symbol: 'NMDC', name: 'NMDC Limited', price: 240.40 },
+  { symbol: 'DLF', name: 'DLF Limited', price: 850.50 },
+  { symbol: 'GODREJPROP', name: 'Godrej Properties Limited', price: 2750.30 },
+  { symbol: 'OBEROIRLTY', name: 'Oberoi Realty Limited', price: 1650.20 },
+  { symbol: 'MACROTECH', name: 'Macrotech Developers Limited (Lodha)', price: 1250.40 },
+  { symbol: 'PHOENIXLTD', name: 'The Phoenix Mills Limited', price: 2850.50 },
+  { symbol: 'MRF', name: 'MRF Limited', price: 128500.00 },
+  { symbol: 'BALKRISIND', name: 'Balkrishna Industries Limited', price: 2650.40 },
+  { symbol: 'APOLLOTYRE', name: 'Apollo Tyres Limited', price: 485.30 },
+  { symbol: 'CEATLTD', name: 'CEAT Limited', price: 2450.20 },
+  { symbol: 'JKTYRE', name: 'JK Tyre & Industries Limited', price: 410.50 },
+  { symbol: 'SHREECEM', name: 'Shree Cement Limited', price: 26500.00 },
+  { symbol: 'AMBUJACEM', name: 'Ambuja Cements Limited', price: 630.40 },
+  { symbol: 'ACC', name: 'ACC Limited', price: 2550.80 },
+  { symbol: 'JKCEMENT', name: 'JK Cement Limited', price: 4150.00 },
+  { symbol: 'RAMCOCEM', name: 'The Ramco Cements Limited', price: 820.40 },
+  { symbol: 'PIDILITIND', name: 'Pidilite Industries Limited', price: 3120.50 },
+  { symbol: 'SIEMENS', name: 'Siemens Limited', price: 6850.00 },
+  { symbol: 'ABB', name: 'ABB India Limited', price: 8120.40 },
+  { symbol: 'HAVELLS', name: 'Havells India Limited', price: 1850.50 },
+  { symbol: 'POLYCAB', name: 'Polycab India Limited', price: 6250.00 },
+  { symbol: 'KEI', name: 'KEI Industries Limited', price: 3950.40 },
+  { symbol: 'APARIND', name: 'Apar Industries Limited', price: 8250.00 },
+  { symbol: 'DIXON', name: 'Dixon Technologies (India) Limited', price: 9250.00 },
+  { symbol: 'AMBER', name: 'Amber Enterprises India Limited', price: 3850.50 },
+  { symbol: 'SYNGENE', name: 'Syngene International Limited', price: 720.40 },
+  { symbol: 'BIOCON', name: 'Biocon Limited', price: 315.60 },
+  { symbol: 'GLAND', name: 'Gland Pharma Limited', price: 1820.50 },
+  { symbol: 'LAURUSLABS', name: 'Laurus Labs Limited', price: 420.40 },
+  { symbol: 'LUPIN', name: 'Lupin Limited', price: 1650.30 },
+  { symbol: 'AUBANK', name: 'AU Small Finance Bank Limited', price: 620.40 },
+  { symbol: 'FEDERALBNK', name: 'The Federal Bank Limited', price: 165.30 },
+  { symbol: 'IDFCFIRSTB', name: 'IDFC FIRST Bank Limited', price: 78.50 },
+  { symbol: 'BANDHANBNK', name: 'Bandhan Bank Limited', price: 185.40 },
+  { symbol: 'YESBANK', name: 'Yes Bank Limited', price: 24.20 },
+  { symbol: 'PNB', name: 'Punjab National Bank', price: 125.60 },
+  { symbol: 'CANBK', name: 'Canara Bank', price: 115.80 },
+  { symbol: 'UNIONBANK', name: 'Union Bank of India', price: 140.20 },
+  { symbol: 'BANKBARODA', name: 'Bank of Baroda', price: 265.40 },
+  { symbol: 'BANKINDIA', name: 'Bank of India', price: 128.50 },
+  { symbol: 'MAHABANK', name: 'Bank of Maharashtra', price: 65.20 },
+  { symbol: 'IOB', name: 'Indian Overseas Bank', price: 68.40 },
+  { symbol: 'UCOBANK', name: 'UCO Bank', price: 54.80 },
+  { symbol: 'CENTRALBK', name: 'Central Bank of India', price: 62.50 },
+  { symbol: 'NYKAA', name: 'FSN E-Commerce Ventures (Nykaa)', price: 172.50 },
+  { symbol: 'MAPMYINDIA', name: 'C.E. Info Systems Limited (MapmyIndia)', price: 2150.30 },
+  { symbol: 'OLECTRA', name: 'Olectra Greentech Limited', price: 1850.40 },
+  { symbol: 'MCX', name: 'Multi Commodity Exchange of India Ltd', price: 3850.50 },
+  { symbol: 'BSE', name: 'BSE Limited', price: 2650.40 },
+  { symbol: 'CDSL', name: 'Central Depository Services (India) Ltd', price: 2120.50 },
+  { symbol: 'MUTHOOTFIN', name: 'Muthoot Finance Limited', price: 1650.30 },
+  { symbol: 'CHOLAFIN', name: 'Cholamandalam Investment & Finance', price: 1250.40 },
+  { symbol: 'SRF', name: 'SRF Limited', price: 2350.60 },
+  { symbol: 'BALRAMCHIN', name: 'Balrampur Chini Mills Limited', price: 385.40 },
+  { symbol: 'PRAJIND', name: 'Praj Industries Limited', price: 680.50 }
+];
+
+async function main() {
+  console.log(`Starting to seed ${STOCKS.length} stocks...`);
+  
+  for (const stock of STOCKS) {
+    await prisma.stock.upsert({
+      where: { symbol: stock.symbol },
+      update: {
+        name: stock.name,
+        price: stock.price
+      },
+      create: {
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.price
+      }
+    });
+  }
+  
+  console.log('Seeding completed successfully!');
+}
+
+main()
+  .catch((e) => {
+    console.error('Error during seeding:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

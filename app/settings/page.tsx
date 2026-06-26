@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string; clientId?: string } | null>(null)
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
   // Load settings from database (if logged in) or localStorage
   useEffect(() => {
@@ -308,13 +309,8 @@ export default function SettingsPage() {
                     <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">Logout from your current session on this device</p>
                   </div>
                   <button
-                    onClick={async () => {
-                      if (confirm('Are you sure you want to log out?')) {
-                        await fetch('/api/auth/logout', { method: 'POST' })
-                        window.location.href = '/login'
-                      }
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-md shadow-red-500/10 hover:shadow-red-500/20 active:scale-95 text-sm"
+                    onClick={() => setIsLogoutModalOpen(true)}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-md shadow-red-500/10 hover:shadow-red-500/20 active:scale-95 text-sm"
                   >
                     <LogOut className="w-4 h-4" />
                     Log Out
@@ -370,6 +366,40 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white dark:bg-[#1A1A1A] border border-[#E8E8E8] dark:border-[#2A2A2A] rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/30 text-red-600 mb-4 mx-auto">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-[#1A1A1A] dark:text-white text-center mb-2">
+              Log Out of Elite Capital?
+            </h3>
+            <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] text-center mb-6">
+              Are you sure you want to log out of your session? You will need to log back in to access your portfolio.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="flex-1 py-2.5 border border-[#E8E8E8] dark:border-[#2A2A2A] rounded-xl text-sm font-semibold text-[#6B7280] dark:text-[#9CA3AF] hover:bg-gray-50 dark:hover:bg-[#252528] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsLogoutModalOpen(false)
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  window.location.href = '/login'
+                }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-red-500/10 hover:shadow-red-500/20 active:scale-95 transition-all"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

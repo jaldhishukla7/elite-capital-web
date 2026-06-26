@@ -367,9 +367,22 @@ export function Navbar() {
                           </div>
                           <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF] truncate max-w-sm block">{stock.name}</span>
                         </div>
-                        <div className="text-[#44C2A4] font-medium text-xs flex items-center gap-1">
-                          <span>View Detail</span>
-                          <span>&rarr;</span>
+                        <div className="text-right flex flex-col items-end">
+                          {stock.price !== undefined ? (
+                            <>
+                              <span className="font-bold text-sm text-[#1A1A1A] dark:text-white">
+                                ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                              <span className={`text-[10px] font-bold ${stock.changePercent >= 0 ? 'text-[#44C2A4]' : 'text-[#E74C3C]'}`}>
+                                {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                              </span>
+                            </>
+                          ) : (
+                            <div className="text-[#44C2A4] font-medium text-xs flex items-center gap-1">
+                              <span>View Detail</span>
+                              <span>&rarr;</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
