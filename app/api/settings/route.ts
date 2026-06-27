@@ -15,6 +15,12 @@ export async function GET(req: NextRequest) {
       currency: user.currency,
       notifications: user.notifications,
       darkMode: user.darkMode,
+      accountBalance: user.dummyBalance,
+      clientId: user.clientId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
     })
   } catch (error) {
     console.error('Get settings error:', error)

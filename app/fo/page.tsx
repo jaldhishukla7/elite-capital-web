@@ -68,39 +68,45 @@ export default function FnOPage() {
   const strikes = Array.from({ length: 11 }, (_, i) => atmStrike + (i - 5) * strikeStep)
 
   // Black-Scholes mock calculation for realistic Option chain values
+  const seededFraction = (seed: number) => {
+    const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453
+    return value - Math.floor(value)
+  }
+
   const generateOptionRow = (strike: number) => {
     const distance = strike - spotPrice
-    
+    const volatilityFactor = underlying === 'NIFTY' ? 300 : 600
+    const seedBase = strike * 13 + spotPrice * 7 + (underlying === 'NIFTY' ? 1 : 2)
+
     // Call pricing
     const callIntrinsic = Math.max(0, spotPrice - strike)
-    // Extrinsic decay bell curve centered at the spot price
-    const callExtrinsic = 180 * Math.exp(-Math.pow(distance / (underlying === 'NIFTY' ? 300 : 600), 2))
+    const callExtrinsic = 180 * Math.exp(-Math.pow(distance / volatilityFactor, 2))
     const callLtp = callIntrinsic + callExtrinsic
-    const callChange = (Math.random() - 0.45) * (callLtp * 0.1) // dynamic drift
-    const callOI = Math.round(Math.max(100, 15000 * Math.exp(-Math.pow(distance / 250, 2)))) // Peak around ATM
-    const callVolume = Math.round(callOI * (1.2 + Math.random() * 0.5))
+    const callChange = (seededFraction(seedBase + 1) - 0.45) * (callLtp * 0.1)
+    const callOI = Math.round(Math.max(100, 15000 * Math.exp(-Math.pow(distance / 250, 2)) * (0.95 + seededFraction(seedBase + 2) * 0.15)))
+    const callVolume = Math.round(callOI * (1.2 + seededFraction(seedBase + 3) * 0.5))
 
     // Put pricing
     const putIntrinsic = Math.max(0, strike - spotPrice)
-    const putExtrinsic = 180 * Math.exp(-Math.pow(distance / (underlying === 'NIFTY' ? 300 : 600), 2))
+    const putExtrinsic = 180 * Math.exp(-Math.pow(distance / volatilityFactor, 2))
     const putLtp = putIntrinsic + putExtrinsic
-    const putChange = (Math.random() - 0.45) * (putLtp * 0.1)
-    const putOI = Math.round(Math.max(100, 14000 * Math.exp(-Math.pow(-distance / 250, 2))))
-    const putVolume = Math.round(putOI * (1.1 + Math.random() * 0.5))
+    const putChange = (seededFraction(seedBase + 4) - 0.45) * (putLtp * 0.1)
+    const putOI = Math.round(Math.max(100, 14000 * Math.exp(-Math.pow(-distance / 250, 2)) * (0.95 + seededFraction(seedBase + 5) * 0.15)))
+    const putVolume = Math.round(putOI * (1.1 + seededFraction(seedBase + 6) * 0.5))
 
     return {
       strike,
       ce: {
         ltp: parseFloat(callLtp.toFixed(2)),
         change: parseFloat(callChange.toFixed(2)),
-        changePercent: parseFloat(((callChange / (callLtp - callChange)) * 100).toFixed(2)),
+        changePercent: parseFloat(((callChange / Math.max(1, callLtp - callChange)) * 100).toFixed(2)),
         oi: callOI,
         volume: callVolume,
       },
       pe: {
         ltp: parseFloat(putLtp.toFixed(2)),
         change: parseFloat(putChange.toFixed(2)),
-        changePercent: parseFloat(((putChange / (putLtp - putChange)) * 100).toFixed(2)),
+        changePercent: parseFloat(((putChange / Math.max(1, putLtp - putChange)) * 100).toFixed(2)),
         oi: putOI,
         volume: putVolume,
       }

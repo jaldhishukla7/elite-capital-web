@@ -5,29 +5,45 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShieldAlert } from 'lucide-react'
 
-// Pages where the disclaimer should never appear
-const AUTH_PATHS = ['/login', '/signup', '/verify-email', '/complete-profile']
+const DASHBOARD_PATH = '/dashboard'
+const DISCLAIMER_DISMISSED_KEY = 'dashboardDisclaimerDismissed'
 
 export function LoadDisclaimer() {
   const [isVisible, setIsVisible] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const pathname = usePathname()
 
-  const isAuthPage = AUTH_PATHS.some((p) => pathname?.startsWith(p))
+  const isDashboardPage = pathname?.startsWith(DASHBOARD_PATH)
 
   useEffect(() => {
-    if (isAuthPage) return
+    if (!isDashboardPage) return
+
+    const dismissed = typeof window !== 'undefined'
+      ? window.localStorage.getItem(DISCLAIMER_DISMISSED_KEY) === 'true'
+      : false
+
+    if (dismissed) {
+      setIsReady(true)
+      return
+    }
 
     const timer = setTimeout(() => {
       setIsVisible(true)
+      setIsReady(true)
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [isAuthPage])
+  }, [isDashboardPage])
 
-  if (isAuthPage) return null
+  if (!isDashboardPage || (!isReady && typeof window !== 'undefined' && window.localStorage.getItem(DISCLAIMER_DISMISSED_KEY) === 'true')) {
+    return null
+  }
 
   const handleClose = () => {
     setIsVisible(false)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(DISCLAIMER_DISMISSED_KEY, 'true')
+    }
   }
 
   return (

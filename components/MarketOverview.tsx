@@ -95,7 +95,7 @@ export function MarketOverview() {
   const displayIndices = merged
 
   return (
-    <section className="bg-white dark:bg-[#0D0D0D] py-12 md:py-16 px-4 md:px-6 border-b border-[#E8E8E8] dark:border-[#2A2A2A]">
+    <section className="bg-white dark:bg-[#0D0D0D] py-8 md:py-10 px-4 md:px-6 border-b border-[#E8E8E8] dark:border-[#2A2A2A]">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

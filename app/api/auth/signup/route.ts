@@ -3,13 +3,22 @@ import { prisma } from '@/lib/prisma'
 import { hashPassword, isPasswordStrong } from '@/lib/password'
 import { createAndSendEmailOtp } from '@/lib/otp'
 
-function generateRandomClientId(): string {
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  let code = 'EC'
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
+async function generateNextClientId(): Promise<string> {
+  const lastUser = await prisma.user.findFirst({
+    where: { clientId: { startsWith: 'EC' } },
+    orderBy: { clientId: 'desc' },
+  })
+
+  if (!lastUser?.clientId) {
+    return 'EC000001'
   }
-  return code
+
+  const lastNumber = parseInt(lastUser.clientId.slice(2), 10)
+  if (Number.isNaN(lastNumber)) {
+    return 'EC000001'
+  }
+
+  return `EC${String(lastNumber + 1).padStart(6, '0')}`
 }
 
 export async function POST(req: NextRequest) {
@@ -57,12 +66,12 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(password)
 
-    // Generate unique client ID
+    // Generate sequential unique client ID with Elite Capital prefix
     let isUnique = false
     let clientId = ''
     let attempts = 0
     while (!isUnique && attempts < 100) {
-      clientId = generateRandomClientId()
+      clientId = await generateNextClientId()
       const existing = await prisma.user.findFirst({ where: { clientId } })
       if (!existing) {
         isUnique = true
@@ -70,7 +79,7 @@ export async function POST(req: NextRequest) {
       attempts++
     }
     if (!isUnique) {
-      clientId = `EC${Date.now().toString().slice(-6)}`
+      clientId = `EC${String(Date.now() % 1000000).padStart(6, '0')}`
     }
 
     const user = await prisma.user.create({

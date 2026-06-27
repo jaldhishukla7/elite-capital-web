@@ -12,6 +12,8 @@ interface UserInfo {
   lastName: string
   email: string
   clientId?: string
+  role?: string
+  accountBalance?: number
 }
 
 export function Navbar() {
@@ -181,13 +183,27 @@ export function Navbar() {
             <div className="flex items-center gap-4">
 
               {/* User Info from cookie */}
-              {/* User Profile Dropdown */}
               {userInfo ? (
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white">
-                    {userInfo.firstName} {userInfo.lastName}{userInfo.clientId ? ` (${userInfo.clientId})` : ''}
-                  </p>
-                  <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">{userInfo.email}</p>
+                <div className="hidden sm:flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#44C2A4] text-sm font-bold text-white">
+                    {userInfo.firstName?.[0] ?? 'U'}
+                  </div>
+                  <div className="flex flex-col text-left leading-tight">
+                    <span className="text-sm font-semibold text-[#1A1A1A] dark:text-white">
+                      {userInfo.firstName} {userInfo.lastName}
+                    </span>
+                    <span className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] truncate max-w-[180px]">
+                      {userInfo.email}
+                    </span>
+                    <span className="text-[11px] text-[#0F766E] dark:text-[#7EE7C5] mt-1">
+                      Available balance: ₹{Number(userInfo.accountBalance ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+                  {userInfo.role === 'ADMIN' && (
+                    <span className="rounded-full bg-[#44C2A4] px-3 py-1 text-[11px] font-semibold text-white">
+                      Admin
+                    </span>
+                  )}
                 </div>
               ) : (
                 <div className="hidden sm:flex items-center gap-3">
@@ -234,6 +250,14 @@ export function Navbar() {
               >
                 <Settings className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
               </Link>
+              {userInfo?.role === 'ADMIN' && (
+                <Link
+                  href="/admin"
+                  className="hidden sm:inline-flex px-3 py-2 text-sm font-semibold text-white bg-[#1F7EFC] hover:bg-[#166fe0] rounded-full transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
 
               {/* Mobile menu */}
               <button
@@ -288,6 +312,15 @@ export function Navbar() {
                   {label}
                 </Link>
               ))}
+              {userInfo?.role === 'ADMIN' && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors text-[#1F7EFC] hover:bg-[#F0F7FF] dark:hover:bg-[#1F3451]"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
             </div>
           )}
         </div>
