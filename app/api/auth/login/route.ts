@@ -8,9 +8,22 @@ export async function POST(req: NextRequest) {
   try {
     const { mobile, password, captcha } = await req.json()
 
-    if (!mobile || !password || !captcha) {
+    if (!mobile || !password) {
       return NextResponse.json(
-        { error: 'Mobile number, password, and captcha are all required.' },
+        { error: 'Mobile number and password are required.' },
+        { status: 400 }
+      )
+    }
+
+    const user = await prisma.user.findUnique({ where: { mobile: mobile.trim() } })
+
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid mobile number or password.' }, { status: 401 })
+    }
+
+    if (!captcha) {
+      return NextResponse.json(
+        { error: 'Captcha is required for regular login.' },
         { status: 400 }
       )
     }
@@ -23,27 +36,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const user = await prisma.user.findUnique({ where: { mobile: mobile.trim() } })
-
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid mobile number or password.' }, { status: 401 })
-    }
-
     const passwordValid = await verifyPassword(password, user.passwordHash)
     if (!passwordValid) {
       return NextResponse.json({ error: 'Invalid mobile number or password.' }, { status: 401 })
     }
 
-    if (!user.isEmailVerified) {
-      return NextResponse.json(
-        {
-          error: 'Please verify your email before logging in.',
-          requiresVerification: true,
-          userId: user.id,
-          email: user.email,
-        },
-        { status: 403 }
-      )
+    if (user.role !== 'ADMIN') {
+      if (!user.isEmailVerified) {
+        return NextResponse.json(
+          {
+            error: 'Please verify your email before logging in.',
+            requiresVerification: true,
+            userId: user.id,
+            email: user.email,
+          },
+          { status: 403 }
+        )
+      }
     }
 
     const userAgent = req.headers.get('user-agent') || undefined
@@ -56,6 +65,8 @@ export async function POST(req: NextRequest) {
         lastName: user.lastName,
         email: user.email,
         clientId: user.clientId || '',
+        role: user.role,
+        accountBalance: user.dummyBalance ?? 0,
       },
       { userAgent, ipAddress }
     )
@@ -64,6 +75,7 @@ export async function POST(req: NextRequest) {
       success: true,
       isProfileComplete: user.isProfileComplete,
       firstName: user.firstName,
+      role: user.role,
     })
   } catch (error) {
     console.error('Login error:', error)

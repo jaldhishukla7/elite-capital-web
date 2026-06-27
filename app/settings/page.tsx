@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Navbar } from '@/components/Navbar'
 import { LiveTicker } from '@/components/LiveTicker'
-import { Save, Bell, Lock, Monitor, LogOut } from 'lucide-react'
+import { Save, Bell, Lock, Monitor, LogOut, X } from 'lucide-react'
 
 interface Settings {
   refreshInterval: number
@@ -19,9 +19,14 @@ export default function SettingsPage() {
     notifications: true,
     darkMode: false,
   })
+  const [accountBalance, setAccountBalance] = useState(0)
+  const [userRole, setUserRole] = useState<string>('USER')
   const [saved, setSaved] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [toastVisible, setToastVisible] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string; clientId?: string } | null>(null)
+  const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string; clientId?: string; role?: string } | null>(null)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
   // Load settings from database (if logged in) or localStorage
@@ -37,13 +42,20 @@ export default function SettingsPage() {
         const u = JSON.parse(rawUser)
         setUserInfo(u)
         setIsLoggedIn(true)
+        setUserRole(u.role || 'USER')
         
         // Load settings from database
         fetch('/api/settings')
           .then((res) => res.json())
           .then((data) => {
             if (data && !data.error) {
-              setSettings(data)
+              setSettings({
+                refreshInterval: data.refreshInterval,
+                currency: data.currency,
+                notifications: data.notifications,
+                darkMode: data.darkMode,
+              })
+              setDummyBalance(data.dummyBalance ?? 0)
             }
           })
           .catch(() => {})
@@ -63,6 +75,9 @@ export default function SettingsPage() {
   }, [])
 
   const handleSave = async () => {
+    setSaveMessage('')
+    setToastVisible(false)
+    setIsSaving(true)
     localStorage.setItem('settings', JSON.stringify(settings))
 
     if (isLoggedIn) {
@@ -74,17 +89,24 @@ export default function SettingsPage() {
         })
         if (res.ok) {
           setSaved(true)
-          setTimeout(() => setSaved(false), 3000)
+          setSaveMessage('Settings saved successfully!')
+          setToastVisible(true)
         } else {
-          alert('Failed to save settings to the database.')
+          setSaveMessage('Failed to save settings to the database.')
+          setToastVisible(true)
         }
       } catch (e) {
-        alert('Network error while saving settings.')
+        setSaveMessage('Network error while saving settings.')
+        setToastVisible(true)
       }
     } else {
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      setSaveMessage('Settings saved locally on this device.')
+      setToastVisible(true)
     }
+
+    setIsSaving(false)
+    setTimeout(() => setToastVisible(false), 3500)
   }
 
   const handleReset = async () => {
@@ -139,11 +161,21 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Success Message */}
-        {saved && (
-          <div className="mb-6 p-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg flex items-center gap-2">
-            <Save className="w-5 h-5" />
-            Settings saved successfully!
+        {/* Success Toast */}
+        {toastVisible && (
+          <div className="fixed bottom-6 right-6 z-50 w-80 rounded-2xl border border-[#E8F7F0] bg-white dark:bg-[#111827] shadow-xl shadow-black/10 p-4 text-sm text-[#0F5132] dark:text-[#A7F3D0]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Save className="w-5 h-5 text-[#10B981]" />
+                <div>
+                  <p className="font-semibold text-[#065F46] dark:text-[#A7F3D0]">{saveMessage}</p>
+                  <p className="text-xs text-[#4B5563] dark:text-[#9CA3AF]">Your preferences are now updated.</p>
+                </div>
+              </div>
+              <button onClick={() => setToastVisible(false)} className="rounded-full p-1 text-[#4B5563] hover:text-[#111827] dark:hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -301,6 +333,20 @@ export default function SettingsPage() {
                       <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white truncate">{userInfo.email}</p>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium uppercase tracking-wider mb-1">Account Role</p>
+                      <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white">{userRole}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium uppercase tracking-wider mb-1">Account Balance</p>
+                      <p className="text-sm font-semibold text-[#44C2A4]">₹{accountBalance.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium uppercase tracking-wider mb-1">Verified Email</p>
+                      <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white">{userInfo.email ? 'Yes' : 'No'}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t border-[#E8E8E8] dark:border-[#2A2A2A] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -344,10 +390,11 @@ export default function SettingsPage() {
           <div className="flex gap-4 pt-4">
             <button
               onClick={handleSave}
-              className="flex-1 px-6 py-3 bg-[#44C2A4] text-white rounded-lg hover:bg-[#3BA89C] transition-colors font-semibold flex items-center justify-center gap-2"
+              disabled={isSaving}
+              className={`flex-1 px-6 py-3 rounded-lg transition-colors font-semibold flex items-center justify-center gap-2 ${isSaving ? 'bg-[#2D8D78] cursor-not-allowed' : 'bg-[#44C2A4] hover:bg-[#3BA89C]'}`}
             >
               <Save className="w-5 h-5" />
-              Save Settings
+              {isSaving ? 'Saving...' : saved ? 'Saved' : 'Save Settings'}
             </button>
             <button
               onClick={handleReset}

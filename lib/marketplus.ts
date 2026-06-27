@@ -2,6 +2,14 @@ import { NseIndia } from 'stock-nse-india'
 import axios from 'axios'
 import { prisma } from '@/lib/prisma'
 
+const MARKET_PROVIDER = process.env.MARKET_PROVIDER?.toLowerCase() || 'yahoo'
+const UPSTOX_BASE = process.env.UPSTOX_API_BASE || 'https://api.upstox.com'
+const UPSTOX_ACCESS_TOKEN = process.env.UPSTOX_ACCESS_TOKEN || ''
+const ANGELONE_BASE = process.env.ANGELONE_API_BASE || 'https://api.angelone.in'
+const ANGELONE_ACCESS_TOKEN = process.env.ANGELONE_ACCESS_TOKEN || ''
+const ANGELONE_API_KEY = process.env.ANGELONE_API_KEY || ''
+const ANGELONE_CLIENT_CODE = process.env.ANGELONE_CLIENT_CODE || ''
+
 // Instantiate NseIndia once
 const nse = new NseIndia()
 
@@ -149,6 +157,201 @@ function getDriftedPrice(symbol: string, basePrice: number): { ltP: number; pCh:
   return { ltP, pCh, pChg };
 }
 
+function toYahooSymbol(symbol: string): string {
+  const upper = symbol.toUpperCase().trim()
+  if (!upper) return ''
+
+  if (upper === 'NIFTY50' || upper === 'NSEI') return '^NSEI'
+  if (upper === 'SENSEX' || upper === 'BSESN') return '^BSESN'
+  if (upper === 'NIFTYBANK' || upper === 'NSEBANK') return '^NSEBANK'
+  if (upper === 'NIFTYIT' || upper === 'CNXIT') return '^CNXIT'
+  if (upper === 'NIFTYPHARMA' || upper === 'CNXPHARMA') return '^CNXPHARMA'
+  if (upper === 'NIFTYFMCG' || upper === 'CNXFMCG') return '^CNXFMCG'
+  if (upper === 'NIFTYAUTO' || upper === 'CNXAUTO') return '^CNXAUTO'
+  if (upper === 'NIFTYMETAL' || upper === 'CNXMETAL') return '^CNXMETAL'
+  if (upper === 'NIFTYENERGY' || upper === 'CNXENERGY') return '^CNXENERGY'
+  if (upper === 'NIFTYREALTY' || upper === 'CNXREALTY') return '^CNXREALTY'
+  if (upper === 'NIFTYMIDCAP150') return '^NSEMDCP50'
+  if (upper === 'NIFTY500') return '^NSE500'
+  if (upper.startsWith('^')) return upper
+  if (upper.endsWith('.NS') || upper.endsWith('.BO')) return upper
+
+  return `${upper}.NS`
+}
+
+function parseYahooQuote(raw: any): MarketPlusQuote | null {
+  if (!raw || raw.longName === undefined && raw.shortName === undefined && raw.symbol === undefined) {
+    return null
+  }
+
+  const price = raw.regularMarketPrice ?? raw.ask ?? raw.bid
+  if (price === undefined || price === null) return null
+
+  const prevClose = raw.regularMarketPreviousClose ?? price
+  const change = price - prevClose
+  const pChg = prevClose > 0 ? (change / prevClose) * 100 : 0
+
+  let cleanSymbol = raw.symbol || ''
+  if (cleanSymbol.endsWith('.NS') || cleanSymbol.endsWith('.BO')) {
+    cleanSymbol = cleanSymbol.slice(0, -3)
+  }
+
+  return {
+    symbol: cleanSymbol,
+    name: raw.longName || raw.shortName || cleanSymbol,
+    ltP: parseFloat(price.toFixed?.(2) ?? Number(price)),
+    open: parseFloat((raw.regularMarketOpen ?? prevClose).toFixed?.(2) ?? Number(raw.regularMarketOpen ?? prevClose)),
+    high: parseFloat((raw.regularMarketDayHigh ?? price).toFixed?.(2) ?? Number(raw.regularMarketDayHigh ?? price)),
+    low: parseFloat((raw.regularMarketDayLow ?? price).toFixed?.(2) ?? Number(raw.regularMarketDayLow ?? price)),
+    pCh: parseFloat(change.toFixed(2)),
+    pChg: parseFloat(pChg.toFixed(2)),
+    volume: Number(raw.regularMarketVolume) || 0,
+    marketCap: Number(raw.marketCap) || 0,
+  }
+}
+
+async function fetchUpstoxSingleQuote(symbol: string): Promise<MarketPlusQuote | null> {
+  if (!UPSTOX_ACCESS_TOKEN) return null
+  const upper = symbol.toUpperCase().trim()
+  const code = upper.replace('.NS', '').replace('.BO', '')
+  const exchange = upper.endsWith('.BO') ? 'BSE_EQ' : 'NSE_EQ'
+  const url = `${UPSTOX_BASE}/live/market/quote?exchange=${exchange}&symbol=${encodeURIComponent(code)}`
+
+  try {
+    const res = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${UPSTOX_ACCESS_TOKEN}`,
+      },
+      timeout: 4000,
+    })
+    const raw = res.data?.data || res.data
+    const price = raw?.last_traded_price ?? raw?.ltp ?? raw?.lastTradedPrice ?? raw?.last_price
+    const prevClose = raw?.close_price ?? raw?.previous_close ?? price
+    if (price === undefined || price === null) return null
+
+    const change = price - prevClose
+    const pChg = prevClose > 0 ? (change / prevClose) * 100 : 0
+
+    return {
+      symbol: code,
+      name: raw?.name || raw?.symbol || code,
+      ltP: Number(price),
+      open: Number(raw?.open_price ?? prevClose),
+      high: Number(raw?.high_price ?? price),
+      low: Number(raw?.low_price ?? price),
+      pCh: Number(change),
+      pChg: Number(pChg),
+      volume: Number(raw?.volume ?? raw?.total_volume ?? 0),
+      marketCap: Number(raw?.market_cap ?? 0),
+    }
+  } catch (error) {
+    console.error('Upstox quote fetch failed:', error)
+    return null
+  }
+}
+
+async function fetchAngelOneSingleQuote(symbol: string): Promise<MarketPlusQuote | null> {
+  if (!ANGELONE_API_KEY && !ANGELONE_ACCESS_TOKEN) return null
+  const upper = symbol.toUpperCase().trim()
+  const code = upper.replace('.NS', '').replace('.BO', '')
+  const exchange = upper.endsWith('.BO') ? 'BSE' : 'NSE'
+  const params = new URLSearchParams({
+    exchange,
+    tradingsymbol: code,
+    ...(ANGELONE_CLIENT_CODE ? { clientcode: ANGELONE_CLIENT_CODE } : {}),
+    ...(ANGELONE_API_KEY ? { api_key: ANGELONE_API_KEY } : {}),
+  })
+  const url = `${ANGELONE_BASE}/rest/secure/market/v1/quote?${params.toString()}`
+
+  try {
+    const res = await axios.get(url, {
+      headers: {
+        ...(ANGELONE_ACCESS_TOKEN ? { Authorization: `Bearer ${ANGELONE_ACCESS_TOKEN}` } : {}),
+      },
+      timeout: 4000,
+    })
+    const raw = res.data?.data || res.data || {}
+    const quote = raw?.last_traded_price ?? raw?.ltp ?? raw?.trade_price ?? raw?.last_price
+    const prevClose = raw?.close_price ?? raw?.previous_close ?? quote
+    if (quote === undefined || quote === null) return null
+
+    const change = quote - prevClose
+    const pChg = prevClose > 0 ? (change / prevClose) * 100 : 0
+
+    return {
+      symbol: code,
+      name: raw?.name || raw?.symbol || code,
+      ltP: Number(quote),
+      open: Number(raw?.open_price ?? prevClose),
+      high: Number(raw?.high_price ?? quote),
+      low: Number(raw?.low_price ?? quote),
+      pCh: Number(change),
+      pChg: Number(pChg),
+      volume: Number(raw?.volume ?? raw?.total_volume ?? 0),
+      marketCap: Number(raw?.market_cap ?? 0),
+    }
+  } catch (error) {
+    console.error('Angel One quote fetch failed:', error)
+    return null
+  }
+}
+
+async function fetchProviderSingleQuote(symbol: string): Promise<MarketPlusQuote | null> {
+  if (MARKET_PROVIDER === 'upstox') {
+    return await fetchUpstoxSingleQuote(symbol)
+  }
+  if (MARKET_PROVIDER === 'angelone') {
+    return await fetchAngelOneSingleQuote(symbol)
+  }
+  return null
+}
+
+async function fetchProviderBatchQuotes(symbols: string[]): Promise<MarketPlusQuote[]> {
+  if (MARKET_PROVIDER === 'upstox' || MARKET_PROVIDER === 'angelone') {
+    const results: MarketPlusQuote[] = []
+    for (const symbol of symbols) {
+      const quote = await fetchProviderSingleQuote(symbol)
+      if (quote) {
+        results.push(quote)
+      }
+    }
+    return results
+  }
+  return []
+}
+
+async function fetchYahooBatchQuotes(symbols: string[]): Promise<MarketPlusQuote[]> {
+  const normalized = Array.from(new Set(symbols.map(toYahooSymbol).filter(Boolean)))
+  if (normalized.length === 0) return []
+
+  const chunks: string[][] = []
+  for (let i = 0; i < normalized.length; i += 40) {
+    chunks.push(normalized.slice(i, i + 40))
+  }
+
+  const results: MarketPlusQuote[] = []
+  for (const chunk of chunks) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(chunk.join(','))}`
+      const res = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        timeout: 4000,
+      })
+      const quotes = res.data?.quoteResponse?.result || []
+      for (const rawQuote of quotes) {
+        const parsed = parseYahooQuote(rawQuote)
+        if (parsed) results.push(parsed)
+      }
+    } catch (error) {
+      console.error('Yahoo quote batch fetch failed:', error)
+    }
+  }
+
+  return results
+}
+
 export class MarketPlusService {
   
   /**
@@ -210,97 +413,74 @@ export class MarketPlusService {
    * Get single quote for any BSE/NSE stock
    */
   static async getSingleQuote(symbol: string): Promise<MarketPlusQuote> {
-    const upper = symbol.toUpperCase().trim()
-    
-    // Ensure correct suffix mapping
-    let yahooSymbol = upper
-    if (upper === 'NIFTY50' || upper === 'NSEI') yahooSymbol = '^NSEI'
-    else if (upper === 'SENSEX' || upper === 'BSESN') yahooSymbol = '^BSESN'
-    else if (upper === 'NIFTYBANK' || upper === 'NSEBANK') yahooSymbol = '^NSEBANK'
-    else if (upper === 'NIFTYIT' || upper === 'CNXIT') yahooSymbol = '^CNXIT'
-    else if (upper === 'NIFTYPHARMA' || upper === 'CNXPHARMA') yahooSymbol = '^CNXPHARMA'
-    else if (upper === 'NIFTYFMCG' || upper === 'CNXFMCG') yahooSymbol = '^CNXFMCG'
-    else if (upper === 'NIFTYAUTO' || upper === 'CNXAUTO') yahooSymbol = '^CNXAUTO'
-    else if (upper === 'NIFTYMETAL' || upper === 'CNXMETAL') yahooSymbol = '^CNXMETAL'
-    else if (upper === 'NIFTYENERGY' || upper === 'CNXENERGY') yahooSymbol = '^CNXENERGY'
-    else if (upper === 'NIFTYREALTY' || upper === 'CNXREALTY') yahooSymbol = '^CNXREALTY'
-    else if (upper === 'NIFTYMIDCAP150') yahooSymbol = '^NSEMDCP50'
-    else if (upper === 'NIFTY500') yahooSymbol = '^NSE500'
-    else if (!upper.includes('.') && !upper.startsWith('^')) {
-      if (/^\d+$/.test(upper)) {
-        yahooSymbol = `${upper}.BO`
-      } else {
-        yahooSymbol = `${upper}.NS`
-      }
+    const providerResult = await fetchProviderSingleQuote(symbol)
+    if (providerResult) {
+      return providerResult
     }
 
+    const yahooSymbol = toYahooSymbol(symbol)
+    if (!yahooSymbol) {
+      throw new Error('Invalid symbol')
+    }
+
+    const batchResults = await fetchYahooBatchQuotes([symbol])
+    if (batchResults.length > 0) {
+      return batchResults[0]
+    }
+
+    // Fallback: still try a direct quote request for symbol aliasing
     try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(yahooSymbol)}`
       const res = await axios.get(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
         timeout: 3000,
       })
-      const meta = res.data?.chart?.result?.[0]?.meta
-      if (meta) {
-        const price = meta.regularMarketPrice || 0
-        const prevClose = meta.previousClose || price
-        const change = price - prevClose
-        const pChg = prevClose > 0 ? (change / prevClose) * 100 : 0
-        
-        let cleanSymbol = meta.symbol || yahooSymbol
-        if (cleanSymbol.endsWith('.NS')) cleanSymbol = cleanSymbol.slice(0, -3)
-        else if (cleanSymbol.endsWith('.BO')) cleanSymbol = cleanSymbol.slice(0, -3)
-
-        return {
-          symbol: cleanSymbol,
-          name: meta.longName || meta.shortName || cleanSymbol,
-          ltP: parseFloat(price.toFixed(2)),
-          open: parseFloat(prevClose.toFixed(2)),
-          high: parseFloat((meta.regularMarketDayHigh || price).toFixed(2)),
-          low: parseFloat((meta.regularMarketDayLow || price).toFixed(2)),
-          pCh: parseFloat(change.toFixed(2)),
-          pChg: parseFloat(pChg.toFixed(2)),
-          volume: meta.regularMarketVolume || 0,
-          marketCap: price * (meta.regularMarketVolume || 100000)
-        }
+      const rawQuote = res.data?.quoteResponse?.result?.[0]
+      const parsed = parseYahooQuote(rawQuote)
+      if (parsed) {
+        return parsed
       }
     } catch (error) {
       console.error(`Error in getSingleQuote for ${yahooSymbol}:`, error)
     }
 
-    // High-fidelity fallback simulated real-time data drift
     const dbStocks = await getCachedDbStocks()
-    const staticStock = dbStocks.find(s => s.symbol === upper || `${s.symbol}.NS` === upper || `${s.symbol}.BO` === upper)
+    const staticStock = dbStocks.find(s => s.symbol === symbol.toUpperCase().trim() || `${s.symbol}.NS` === symbol.toUpperCase().trim() || `${s.symbol}.BO` === symbol.toUpperCase().trim())
     const fallbackBasePrice = staticStock ? staticStock.price : 500
-    const companyName = staticStock ? staticStock.name : `${upper} Limited`
-    
+    const companyName = staticStock ? staticStock.name : `${symbol.toUpperCase()} Limited`
+
     return {
-      symbol: upper.replace('.NS', '').replace('.BO', ''),
+      symbol: symbol.toUpperCase().replace('.NS', '').replace('.BO', ''),
       name: companyName,
       ltP: fallbackBasePrice,
       open: fallbackBasePrice * 0.992,
-      high: fallbackBasePrice * 1.01,
-      low: fallbackBasePrice * 0.985,
-      pCh: fallbackBasePrice * 0.008,
+      high: parseFloat((fallbackBasePrice * 1.01).toFixed(2)),
+      low: parseFloat((fallbackBasePrice * 0.985).toFixed(2)),
+      pCh: parseFloat((fallbackBasePrice * 0.008).toFixed(2)),
       pChg: 0.8,
       volume: 1200000,
-      marketCap: fallbackBasePrice * 20000000
+      marketCap: fallbackBasePrice * 20000000,
     }
   }
 
   static async getBatchQuotes(symbols: string[]): Promise<MarketPlusQuote[]> {
     if (!symbols || symbols.length === 0) return []
-    
-    // De-duplicate symbols
-    const uniqueSymbols = Array.from(new Set(symbols.map(s => s.toUpperCase().trim())))
+
+    const uniqueSymbols = Array.from(new Set(symbols.map(s => s.toUpperCase().trim()).filter(Boolean)))
+    const providerQuotes = await fetchProviderBatchQuotes(uniqueSymbols)
+    if (providerQuotes.length > 0) {
+      return providerQuotes
+    }
+
+    const quotes = await fetchYahooBatchQuotes(uniqueSymbols)
+    if (quotes.length > 0) {
+      return quotes
+    }
 
     try {
-      const results = await Promise.all(
-        uniqueSymbols.map(sym => this.getSingleQuote(sym))
-      )
-      return results.filter(Boolean)
+      return await Promise.all(uniqueSymbols.map(sym => this.getSingleQuote(sym)))
     } catch (e) {
       console.error('Error fetching batch quotes:', e)
       return []
@@ -327,9 +507,12 @@ export class MarketPlusService {
     ]
 
     try {
-      const results = await Promise.all(
-        indicesList.map(async (idx) => {
-          const quote = await this.getSingleQuote(idx.symbol)
+      const quotes = await this.getBatchQuotes(indicesList.map(idx => idx.symbol))
+      const quoteMap = new Map(quotes.map(q => [q.symbol.toUpperCase(), q]))
+
+      return indicesList.map((idx) => {
+        const quote = quoteMap.get(idx.symbol) || quoteMap.get(toYahooSymbol(idx.symbol).replace('.NS', '').replace('.BO', ''))
+        if (quote) {
           return {
             symbol: idx.symbol,
             name: idx.name,
@@ -339,16 +522,26 @@ export class MarketPlusService {
             high: quote.high,
             low: quote.low,
             pCh: quote.pCh,
-            pChg: quote.pChg
+            pChg: quote.pChg,
           }
-        })
-      )
-      return results
+        }
+        const { ltP, pCh, pChg } = getDriftedPrice(idx.symbol, INDICES_FALLBACK_BASES.find(item => item.symbol === idx.symbol)?.basePrice || 10000)
+        return {
+          symbol: idx.symbol,
+          name: idx.name,
+          type: 'index',
+          ltP,
+          open: ltP - pCh,
+          high: ltP * 1.01,
+          low: ltP * 0.99,
+          pCh,
+          pChg,
+        }
+      })
     } catch (e) {
       console.error('Error fetching live indices:', e)
     }
     
-    // Fallback
     return INDICES_FALLBACK_BASES.map(idx => {
       const { ltP, pCh, pChg } = getDriftedPrice(idx.symbol, idx.basePrice);
       return {
@@ -394,40 +587,46 @@ export class MarketPlusService {
       return cachedQuotes
     }
 
+    const dbStocks = await getCachedDbStocks()
+    if (dbStocks.length === 0) {
+      return []
+    }
+
     try {
-      const dbStocks = await getCachedDbStocks()
-      const results = await Promise.all(
-        dbStocks.map(async (s) => {
-          try {
-            return await this.getSingleQuote(s.symbol)
-          } catch {
-            return {
-              symbol: s.symbol,
-              name: s.name,
-              ltP: s.price,
-              open: s.price,
-              high: s.price,
-              low: s.price,
-              pCh: 0,
-              pChg: 0,
-              volume: 100000,
-              marketCap: s.price * 100000
-            }
-          }
-        })
-      )
-      const validResults = results.filter(Boolean)
-      if (validResults.length > 0) {
-        cachedQuotes = validResults
+      const quotes = await this.getBatchQuotes(dbStocks.map((s) => s.symbol))
+      const quoteMap = new Map(quotes.map((q) => [q.symbol.toUpperCase(), q]))
+
+      const results = dbStocks.map((s) => {
+        const upperSymbol = s.symbol.toUpperCase()
+        const quote = quoteMap.get(upperSymbol) || quoteMap.get(`${upperSymbol}.NS`) || quoteMap.get(`${upperSymbol}.BO`)
+        if (quote) {
+          return quote
+        }
+
+        return {
+          symbol: s.symbol,
+          name: s.name,
+          ltP: s.price,
+          open: s.price,
+          high: s.price,
+          low: s.price,
+          pCh: 0,
+          pChg: 0,
+          volume: 100000,
+          marketCap: s.price * 100000,
+        }
+      })
+
+      if (results.length > 0) {
+        cachedQuotes = results
         cachedQuotesExpiry = now + 60 * 1000 // Cache for 1 minute
-        return cachedQuotes
+        return results
       }
     } catch (e) {
       console.error('Error fetching all quotes:', e)
     }
 
-    const dbStocks = await getCachedDbStocks()
-    return dbStocks.map(s => ({
+    return dbStocks.map((s) => ({
       symbol: s.symbol,
       name: s.name,
       ltP: s.price,
@@ -437,7 +636,7 @@ export class MarketPlusService {
       pCh: 0,
       pChg: 0,
       volume: 100000,
-      marketCap: s.price * 100000
+      marketCap: s.price * 100000,
     }))
   }
 }

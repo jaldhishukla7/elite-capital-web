@@ -39,11 +39,20 @@ export default function SignupPage() {
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
 
-      const data = await res.json()
+      let data: any = {}
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        data = await res.json()
+      } else {
+        const text = await res.text()
+        console.error('Signup route returned non-JSON response:', res.status, text)
+        throw new Error('Server returned an unexpected response. Please try again.')
+      }
 
       if (!res.ok) {
         setError(data.error || 'Something went wrong. Please try again.')
@@ -53,7 +62,8 @@ export default function SignupPage() {
 
       router.push(`/verify-email?userId=${data.userId}&email=${encodeURIComponent(data.email)}`)
     } catch (err) {
-      setError('Network error. Please check your connection and try again.')
+      console.error('Signup request failed:', err)
+      setError('Server error. Please refresh the page and try again.')
       setIsLoading(false)
     }
   }

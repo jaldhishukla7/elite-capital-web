@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/verify-email',
   '/forgot-password',
   '/reset-password',
+  '/admin',
 ]
 
 export function middleware(req: NextRequest) {
@@ -21,7 +22,7 @@ export function middleware(req: NextRequest) {
   }
 
   // Allow public pages
-  const isPublic = pathname === '/' || PUBLIC_PATHS.some(path => pathname.startsWith(path))
+  const isPublic = pathname === '/' || PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`))
   if (isPublic) return NextResponse.next()
 
   // Check session cookie

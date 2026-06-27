@@ -166,7 +166,7 @@ export function LiveTicker() {
   }
 
   return (
-    <div className="sticky top-0 z-40 w-full h-[64px] bg-white dark:bg-[#0D0D0D] border-b border-[#E8E8E8] dark:border-[#2A2A2A] flex items-center overflow-hidden">
+    <div className="sticky top-16 z-30 w-full h-[64px] bg-white dark:bg-[#0D0D0D] border-b border-[#E8E8E8] dark:border-[#2A2A2A] flex items-center overflow-hidden">
       {/* CSS infinite ticker marquee styling */}
       <style>{`
         @keyframes ticker-marquee {
@@ -181,12 +181,10 @@ export function LiveTicker() {
           animation-play-state: paused;
         }
         .ticker-marquee-track {
-          display: flex;
+          display: inline-flex;
           width: max-content;
-          animation: ticker-marquee 30s linear infinite;
-          gap: 16px;
-          padding-left: 8px;
-          padding-right: 8px;
+          animation: ticker-marquee 35s linear infinite;
+          gap: 12px;
         }
       `}</style>
 

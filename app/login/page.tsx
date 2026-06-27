@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [captchaSvg, setCaptchaSvg] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const loadCaptcha = useCallback(async () => {
@@ -38,11 +39,20 @@ export default function LoginPage() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile, password, captcha: captchaInput }),
       })
 
-      const data = await res.json()
+      let data: any = {}
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        data = await res.json()
+      } else {
+        const text = await res.text()
+        console.error('Login route returned non-JSON response:', res.status, text)
+        throw new Error('Server returned an unexpected response. Please try again.')
+      }
 
       if (!res.ok) {
         setError(data.error || 'Login failed. Please try again.')
@@ -57,13 +67,21 @@ export default function LoginPage() {
         return
       }
 
-      if (data.isProfileComplete) {
-        router.push('/dashboard')
-      } else {
-        router.push('/complete-profile')
-      }
+      setSuccess('Login successful. Redirecting you to the dashboard...')
+      setIsLoading(false)
+
+      setTimeout(() => {
+        if (data.role === 'ADMIN') {
+          router.push('/admin')
+        } else if (data.isProfileComplete) {
+          router.push('/dashboard')
+        } else {
+          router.push('/complete-profile')
+        }
+      }, 1200)
     } catch (err) {
-      setError('Network error. Please try again.')
+      console.error('Login request failed:', err)
+      setError('Server error. Please refresh the page and try again.')
       setIsLoading(false)
       loadCaptcha()
     }
@@ -88,6 +106,12 @@ export default function LoginPage() {
           {error && (
             <div className="mb-4 p-3 bg-[#FFEBEE] dark:bg-[#3A1A1A]/40 border border-[#E74C3C]/30 rounded-lg text-sm text-[#E74C3C]">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-[#E6F9F3] dark:bg-[#0E271F] border border-[#44C2A4]/30 rounded-lg text-sm text-[#0F5132] dark:text-[#A1F7D3]">
+              {success}
             </div>
           )}
 
