@@ -42,6 +42,41 @@ export default function FnOPage() {
     }
   }, [])
 
+  const [realOptionChain, setRealOptionChain] = useState<any[] | null>(null)
+  const [expiryDatesList, setExpiryDatesList] = useState<string[]>(['26-Jun-2026', '02-Jul-2026', '09-Jul-2026', '30-Jul-2026'])
+
+  // Fetch real-time Option Chain from API
+  useEffect(() => {
+    if (underlying === 'SENSEX') {
+      setRealOptionChain(null)
+      setExpiryDatesList(['26-Jun-2026', '02-Jul-2026', '09-Jul-2026', '30-Jul-2026'])
+      return
+    }
+
+    let isMounted = true
+    fetch(`/api/fo/option-chain?symbol=${underlying}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setRealOptionChain(data)
+          const expiries = Array.from(new Set(data.map((r: any) => r.expiryDates).filter(Boolean))) as string[]
+          if (expiries.length > 0) {
+            setExpiryDatesList(expiries)
+            if (!expiries.includes(expiry)) {
+              setExpiry(expiries[0])
+            }
+          }
+        }
+      })
+      .catch(() => {
+        if (isMounted) setRealOptionChain(null)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [underlying])
+
   // Find selected index price
   const selectedIndexData = (indices || []).find((ind: any) => {
     if (underlying === 'NIFTY') return ind.symbol === 'NIFTY50'
@@ -113,7 +148,33 @@ export default function FnOPage() {
     }
   }
 
-  const optionChainData = strikes.map(generateOptionRow)
+  const optionChainData = (() => {
+    if (realOptionChain && realOptionChain.length > 0) {
+      const filtered = realOptionChain.filter((r: any) => r.expiryDates === expiry)
+      if (filtered.length > 0) {
+        return filtered
+          .sort((a: any, b: any) => a.strikePrice - b.strikePrice)
+          .map((record: any) => ({
+            strike: record.strikePrice,
+            ce: {
+              ltp: record.CE?.lastPrice || 0,
+              change: record.CE?.change || 0,
+              changePercent: record.CE?.pChange || 0,
+              oi: record.CE?.openInterest || 0,
+              volume: record.CE?.totalTradedVolume || 0,
+            },
+            pe: {
+              ltp: record.PE?.lastPrice || 0,
+              change: record.PE?.change || 0,
+              changePercent: record.PE?.pChange || 0,
+              oi: record.PE?.openInterest || 0,
+              volume: record.PE?.totalTradedVolume || 0,
+            }
+          }))
+      }
+    }
+    return strikes.map(generateOptionRow)
+  })()
 
   // Put-Call Ratio (PCR) Calculation
   const totalCE_OI = optionChainData.reduce((acc, row) => acc + row.ce.oi, 0)
@@ -224,10 +285,11 @@ export default function FnOPage() {
                 onChange={(e) => setExpiry(e.target.value)}
                 className="bg-transparent text-sm font-semibold text-[#1A1A1A] dark:text-white focus:outline-none cursor-pointer pr-4"
               >
-                <option value="26-Jun-2026">26-Jun-2026 (Monthly)</option>
-                <option value="02-Jul-2026">02-Jul-2026 (Weekly)</option>
-                <option value="09-Jul-2026">09-Jul-2026 (Weekly)</option>
-                <option value="30-Jul-2026">30-Jul-2026 (Monthly)</option>
+                {expiryDatesList.map((date) => (
+                  <option key={date} value={date}>
+                    {date}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
