@@ -82,6 +82,38 @@ function VerifyEmailContent() {
     }
   }
 
+  const handleSkip = async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/skip-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to skip verification.')
+        setIsLoading(false)
+        return
+      }
+      
+      setSuccessMsg('Verification skipped. Logging you in...')
+      setTimeout(() => {
+        if (data.role === 'ADMIN') {
+          router.push('/admin')
+        } else if (data.isProfileComplete) {
+          router.push('/dashboard')
+        } else {
+          router.push('/complete-profile')
+        }
+      }, 1200)
+    } catch {
+      setError('Network error. Please try again.')
+      setIsLoading(false)
+    }
+  }
+
   const handleResend = async () => {
     setIsResending(true)
     setError('')
@@ -127,6 +159,12 @@ function VerifyEmailContent() {
             <span className="font-semibold text-[#1A1A1A] dark:text-white">{email}</span>
           </p>
 
+          {email.toLowerCase() !== 'jaldhishukla7@gmail.com' && (
+            <div className="mb-6 p-4 bg-[#F0F7FF] dark:bg-[#0C243C] border border-[#BFDBFE] dark:border-[#1E3A8A] rounded-2xl text-xs text-left text-[#1E40AF] dark:text-[#93C5FD]">
+              🔧 <strong>Local Development Notice:</strong> Since Resend is in free/sandbox mode, emails to other addresses cannot be delivered. You can find your 6-digit OTP code printed directly in your local command terminal logs where you started the server.
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-[#FFEBEE] dark:bg-[#3A1A1A]/40 border border-[#E74C3C]/30 rounded-lg text-sm text-[#E74C3C] text-left">
               {error}
@@ -161,6 +199,15 @@ function VerifyEmailContent() {
               className="w-full py-3 bg-[#44C2A4] text-white font-semibold rounded-full hover:bg-[#3BA98A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Verifying...' : 'Verify Email'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="w-full mt-3 py-3 border-2 border-[#E8E8E8] dark:border-[#2A2A2A] text-[#1A1A1A] dark:text-white font-semibold rounded-full hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Skip anyway
             </button>
           </form>
 

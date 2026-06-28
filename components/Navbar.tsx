@@ -14,6 +14,7 @@ interface UserInfo {
   clientId?: string
   role?: string
   accountBalance?: number
+  isEmailVerified?: boolean
 }
 
 export function Navbar() {
@@ -34,12 +35,26 @@ export function Navbar() {
 
   const { stocks } = useStocks(100)
 
-  // Read user info from cookie
+  // Read user info from cookie and sync with database in real-time
   useEffect(() => {
     const getCookie = (name: string) => {
       const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
       return match ? decodeURIComponent(match[2]) : null
     }
+
+    const updateUserInfo = (data: any) => {
+      setUserInfo(prev => {
+        const next = prev ? { ...prev, ...data } : data
+        // Update client-side cookie if changed to keep it in sync across pages
+        const rawCookie = getCookie('ecm_user')
+        const currentCookieData = rawCookie ? JSON.parse(rawCookie) : {}
+        const mergedCookieData = { ...currentCookieData, ...next }
+        
+        document.cookie = `ecm_user=${encodeURIComponent(JSON.stringify(mergedCookieData))}; path=/; max-age=${30 * 24 * 60 * 60}; sameSite=lax;`
+        return next
+      })
+    }
+
     const raw = getCookie('ecm_user')
     if (raw) {
       try {
@@ -48,6 +63,36 @@ export function Navbar() {
         // cookie malformed
       }
     }
+
+    // Function to fetch latest data from DB (includes accountBalance)
+    const fetchFreshData = async () => {
+      try {
+        const res = await fetch('/api/settings')
+        if (res.ok) {
+          const data = await res.json()
+          if (data && !data.error) {
+            updateUserInfo({
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              clientId: data.clientId,
+              role: data.role,
+              accountBalance: data.accountBalance,
+              isEmailVerified: data.isEmailVerified,
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching real-time user info:', err)
+      }
+    }
+
+    // Fetch immediately on mount
+    fetchFreshData()
+
+    // Poll every 4 seconds to keep balance/info updated in real-time
+    const interval = setInterval(fetchFreshData, 4000)
+    return () => clearInterval(interval)
   }, [])
 
   // Debounced real-time stock search API call

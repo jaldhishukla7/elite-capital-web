@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      isEmailVerified: user.isEmailVerified,
     })
   } catch (error) {
     console.error('Get settings error:', error)

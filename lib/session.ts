@@ -16,7 +16,7 @@ export function hashToken(token: string): string {
 
 export async function createSession(
   userId: string,
-  userInfo: { firstName: string; lastName: string; email: string; clientId: string; role: string; accountBalance: number },
+  userInfo: { firstName: string; lastName: string; email: string; clientId: string; role: string; accountBalance: number; isEmailVerified?: boolean },
   metadata?: { userAgent?: string; ipAddress?: string }
 ) {
   const token = generateSessionToken()
@@ -52,6 +52,7 @@ export async function createSession(
     clientId: userInfo.clientId,
     role: userInfo.role,
     accountBalance: userInfo.accountBalance,
+    isEmailVerified: userInfo.isEmailVerified ?? false,
   }), {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',

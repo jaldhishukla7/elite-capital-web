@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [toastVisible, setToastVisible] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string; clientId?: string; role?: string } | null>(null)
+  const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string; clientId?: string; role?: string; isEmailVerified?: boolean } | null>(null)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
   // Load settings from database (if logged in) or localStorage
@@ -43,8 +43,12 @@ export default function SettingsPage() {
         setUserInfo(u)
         setIsLoggedIn(true)
         setUserRole(u.role || 'USER')
-        
-        // Load settings from database
+      } catch (e) {
+        // Fallback to default
+      }
+
+      // Load settings from database
+      const fetchSettings = () => {
         fetch('/api/settings')
           .then((res) => res.json())
           .then((data) => {
@@ -55,13 +59,19 @@ export default function SettingsPage() {
                 notifications: data.notifications,
                 darkMode: data.darkMode,
               })
-              setDummyBalance(data.dummyBalance ?? 0)
+              setAccountBalance(data.accountBalance ?? 0)
+              setUserInfo(prev => prev ? {
+                ...prev,
+                isEmailVerified: data.isEmailVerified
+              } : null)
             }
           })
           .catch(() => {})
-      } catch (e) {
-        // Fallback to default
       }
+
+      fetchSettings()
+      const interval = setInterval(fetchSettings, 4000)
+      return () => clearInterval(interval)
     } else {
       const savedSettings = localStorage.getItem('settings')
       if (savedSettings) {
@@ -344,7 +354,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] font-medium uppercase tracking-wider mb-1">Verified Email</p>
-                      <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white">{userInfo.email ? 'Yes' : 'No'}</p>
+                      <p className="text-sm font-semibold text-[#1A1A1A] dark:text-white">{userInfo.isEmailVerified ? 'Yes' : 'No'}</p>
                     </div>
                   </div>
                 </div>

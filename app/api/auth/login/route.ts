@@ -41,20 +41,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid mobile number or password.' }, { status: 401 })
     }
 
-    if (user.role !== 'ADMIN') {
-      if (!user.isEmailVerified) {
-        return NextResponse.json(
-          {
-            error: 'Please verify your email before logging in.',
-            requiresVerification: true,
-            userId: user.id,
-            email: user.email,
-          },
-          { status: 403 }
-        )
-      }
-    }
-
     const userAgent = req.headers.get('user-agent') || undefined
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0] || undefined
 
@@ -67,6 +53,7 @@ export async function POST(req: NextRequest) {
         clientId: user.clientId || '',
         role: user.role,
         accountBalance: user.dummyBalance ?? 0,
+        isEmailVerified: user.isEmailVerified,
       },
       { userAgent, ipAddress }
     )

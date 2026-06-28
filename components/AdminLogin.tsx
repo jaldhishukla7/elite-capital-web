@@ -6,8 +6,8 @@ import { Lock, Eye, EyeOff } from 'lucide-react'
 
 export function AdminLogin() {
   const router = useRouter()
-  const [email, setEmail] = useState('admin@gmail.com')
-  const [password, setPassword] = useState('EliteWeb@123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -54,7 +54,7 @@ export function AdminLogin() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-[#FFEBEE] dark:bg-[#3A1A1A]/40 border border-[#E74C3C]/30 rounded-lg text-sm text-[#E74C3C]">
+            <div className="mb-4 p-3 bg-[#FFEBEE] dark:bg-[#3A1A1A]/40 border border-[#E74C3C]/30 rounded-lg text-sm text-[#E74C3C] text-left">
               {error}
             </div>
           )}
@@ -106,12 +106,6 @@ export function AdminLogin() {
               {isLoading ? 'Signing in...' : 'Sign in as Admin'}
             </button>
           </form>
-
-          <div className="mt-6 rounded-2xl bg-[#F7FFFC] border border-[#D1F3EB] p-4 text-sm text-[#0F766E] dark:bg-[#031d16] dark:border-[#12322b] dark:text-[#A7F3D0]">
-            <p className="font-semibold">Admin credentials</p>
-            <p className="mt-2">Email: <span className="font-medium">admin@gmail.com</span></p>
-            <p>Password: <span className="font-medium">EliteWeb@123</span></p>
-          </div>
         </div>
       </div>
     </div>
